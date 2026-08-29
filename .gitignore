@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build outputs
+.next/
+dist/
+build/
+out/
+.turbo/
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# android
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/.expo/
+*.keystore
+*.jks
+keystore.properties
+
+# misc
+.DS_Store
+*.log
+npm-debug.log*
+pnpm-debug.log*
+coverage/
+.vscode/*
+!.vscode/extensions.json
+
+# prisma
+packages/database/prisma/dev.db

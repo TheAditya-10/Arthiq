@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: arthiq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: arthiq
+      POSTGRES_PASSWORD: arthiq
+      POSTGRES_DB: arthiq
+    ports:
+      - "5432:5432"
+    volumes:
+      - arthiq-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  arthiq-postgres-data:

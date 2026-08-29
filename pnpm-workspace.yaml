@@ -1,0 +1,15 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+
+# Native/postinstall build scripts explicitly allow-listed after review:
+# esbuild (used by vitest/tsx) and unrs-resolver (used by eslint's import
+# resolver) both ship prebuilt native binaries fetched via a postinstall
+# script — required for those tools to function.
+onlyBuiltDependencies:
+  - esbuild
+  - unrs-resolver

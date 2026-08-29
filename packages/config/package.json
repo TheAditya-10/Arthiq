@@ -1,0 +1,20 @@
+{
+  "name": "@arthiq/config",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "tsconfig.base.json",
+    "eslint.base.js",
+    "prettier.base.js"
+  ],
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./eslint.base": "./eslint.base.js",
+    "./prettier.base": "./prettier.base.js"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.17.0",
+    "typescript-eslint": "^8.18.2"
+  }
+}
