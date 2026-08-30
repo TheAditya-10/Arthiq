@@ -35,3 +35,8 @@ coverage/
 
 # prisma
 packages/database/prisma/dev.db
+
+# playwright
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/

@@ -189,7 +189,7 @@ describe("people ledger (via /transactions)", () => {
   });
 
   it("POST /people-ledger maps entryType to the right transaction shape and persists notes/dueDate", async () => {
-    const { accessToken } = await registerTestUser(app);
+    const { accessToken, userId } = await registerTestUser(app);
     const account = await app.inject({
       method: "POST",
       url: "/accounts",
@@ -255,6 +255,17 @@ describe("people ledger (via /transactions)", () => {
     });
     expect(repayment.json().type).toBe("LENT_REPAYMENT");
     expect(repayment.json().direction).toBe("CREDIT");
+
+    // Repayments (not the original lending) get an audit trail entry —
+    // docs/SECURITY.md §5.
+    const auditRows = await app.prisma.auditLog.findMany({
+      where: { userId, action: "REPAYMENT_RECORDED", transactionId: repayment.json().id },
+    });
+    expect(auditRows).toHaveLength(1);
+    const lentAuditRows = await app.prisma.auditLog.findMany({
+      where: { userId, action: "REPAYMENT_RECORDED", transactionId: lent.json().id },
+    });
+    expect(lentAuditRows).toHaveLength(0);
 
     const finalPerson = await app.inject({
       method: "GET",

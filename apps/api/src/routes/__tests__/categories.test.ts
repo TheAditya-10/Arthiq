@@ -82,8 +82,8 @@ describe("category routes", () => {
     expect(stillThere.json().bucketId).toBe(bucket.json().id);
   });
 
-  it("merges one bucket into another, reassigning transactions", async () => {
-    const { accessToken } = await registerTestUser(app);
+  it("merges one bucket into another, reassigning transactions and recording an audit log entry", async () => {
+    const { accessToken, userId } = await registerTestUser(app);
     const from = await app.inject({
       method: "POST",
       url: "/buckets",
@@ -135,5 +135,13 @@ describe("category routes", () => {
       headers: authHeader(accessToken),
     });
     expect(reassigned.json().bucketId).toBe(into.json().id);
+
+    const auditRows = await app.prisma.auditLog.findMany({
+      where: { userId, entityId: from.json().id, action: "CATEGORY_MERGED" },
+    });
+    expect(auditRows).toHaveLength(1);
+    expect((auditRows[0]!.after as { mergedIntoBucketId: string }).mergedIntoBucketId).toBe(
+      into.json().id,
+    );
   });
 });

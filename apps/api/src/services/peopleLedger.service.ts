@@ -44,5 +44,25 @@ export async function addPeopleLedgerEntry(
     });
   }
 
+  // Repayments specifically (not the original lending/borrowing) get an
+  // audit trail entry — docs/SECURITY.md §5's "financial-state-changing
+  // actions are traceable to a user and a time."
+  if (input.entryType === "REPAYMENT_RECEIVED" || input.entryType === "REPAYMENT_MADE") {
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        entityType: "PeopleLedgerEntry",
+        entityId: transaction.id,
+        transactionId: transaction.id,
+        action: "REPAYMENT_RECORDED",
+        after: {
+          personId: input.personId,
+          entryType: input.entryType,
+          amountMinor: transaction.amountMinor.toString(),
+        },
+      },
+    });
+  }
+
   return transaction;
 }

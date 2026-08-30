@@ -9,6 +9,7 @@ import { prisma as defaultPrisma, type PrismaClient } from "@arthiq/database";
 
 import { healthRoutes } from "./routes/health.js";
 import { authRoutes } from "./routes/auth.js";
+import { userRoutes } from "./routes/users.js";
 import { accountRoutes } from "./routes/accounts.js";
 import { categoryRoutes } from "./routes/categories.js";
 import { merchantRuleRoutes } from "./routes/merchantRules.js";
@@ -110,6 +111,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
 
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  await app.register(userRoutes);
   await app.register(accountRoutes);
   await app.register(categoryRoutes);
   await app.register(merchantRuleRoutes);

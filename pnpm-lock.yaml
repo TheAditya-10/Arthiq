@@ -172,6 +172,9 @@ importers:
       '@arthiq/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@arthiq/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@eslint/eslintrc':
         specifier: ^3.2.0
         version: 3.3.6(supports-color@8.1.1)
@@ -190,6 +193,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.20
         version: 10.5.4(postcss@8.5.26)
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.6.1
       eslint:
         specifier: ^9.17.0
         version: 9.39.5(jiti@1.21.7)(supports-color@8.1.1)

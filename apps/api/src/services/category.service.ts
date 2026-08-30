@@ -55,9 +55,19 @@ export async function mergeBucketInto(
   fromId: string,
   intoId: string,
 ): Promise<void> {
-  await requireBucket(prisma, userId, fromId);
-  await requireBucket(prisma, userId, intoId);
+  const from = await requireBucket(prisma, userId, fromId);
+  const into = await requireBucket(prisma, userId, intoId);
   await mergeBuckets(prisma, userId, fromId, intoId);
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      entityType: "Bucket",
+      entityId: fromId,
+      action: "CATEGORY_MERGED",
+      before: { bucketId: from.id, bucketName: from.name },
+      after: { mergedIntoBucketId: into.id, mergedIntoBucketName: into.name },
+    },
+  });
 }
 
 export const getSubBuckets = listSubBuckets;
@@ -107,7 +117,17 @@ export async function mergeSubBucketInto(
   fromId: string,
   intoId: string,
 ): Promise<void> {
-  await requireSubBucket(prisma, userId, fromId);
-  await requireSubBucket(prisma, userId, intoId);
+  const from = await requireSubBucket(prisma, userId, fromId);
+  const into = await requireSubBucket(prisma, userId, intoId);
   await mergeSubBuckets(prisma, userId, fromId, intoId);
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      entityType: "SubBucket",
+      entityId: fromId,
+      action: "CATEGORY_MERGED",
+      before: { subBucketId: from.id, subBucketName: from.name },
+      after: { mergedIntoSubBucketId: into.id, mergedIntoSubBucketName: into.name },
+    },
+  });
 }

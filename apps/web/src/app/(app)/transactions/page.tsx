@@ -62,6 +62,7 @@ export default function TransactionsPage() {
   const [to, setTo] = useState("");
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([api.buckets.list(), api.subBuckets.list(), api.events.list()])
@@ -111,6 +112,12 @@ export default function TransactionsPage() {
     });
     setItems((prev) => prev.map((t) => (t.id === txn.id ? updated : t)));
     setEditingId(null);
+  }
+
+  async function handleEventChange(txn: TransactionRow, newEventId: string) {
+    const updated = await api.transactions.update(txn.id, { eventId: newEventId || undefined });
+    setItems((prev) => prev.map((t) => (t.id === txn.id ? updated : t)));
+    setEditingEventId(null);
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -290,7 +297,29 @@ export default function TransactionsPage() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-slate-600">
-                    {txn.eventId ? eventNameById.get(txn.eventId) : "—"}
+                    {editingEventId === txn.id ? (
+                      <Select
+                        autoFocus
+                        defaultValue={txn.eventId ?? ""}
+                        onBlur={() => setEditingEventId(null)}
+                        onChange={(e) => handleEventChange(txn, e.target.value)}
+                      >
+                        <option value="">No event</option>
+                        {events.map((ev) => (
+                          <option key={ev.id} value={ev.id}>
+                            {ev.name}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <button
+                        onClick={() => setEditingEventId(txn.id)}
+                        className="rounded px-1 py-0.5 text-left hover:bg-slate-100"
+                        title="Click to attach an event"
+                      >
+                        {txn.eventId ? eventNameById.get(txn.eventId) : "—"}
+                      </button>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <Badge tone={CLASSIFICATION_TONE[txn.classificationSource] ?? "neutral"}>

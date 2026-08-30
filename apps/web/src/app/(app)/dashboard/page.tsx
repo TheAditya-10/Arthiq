@@ -137,7 +137,9 @@ export default function DashboardPage() {
                 Total Spending{excludedEventIds.length > 0 ? " (adjusted)" : ""}
               </CardHeader>
               <CardBody>
-                <p className="text-2xl font-semibold">{formatINR(summary.adjusted.expense)}</p>
+                <p data-testid="total-spending" className="text-2xl font-semibold">
+                  {formatINR(summary.adjusted.expense)}
+                </p>
                 {excludedEventIds.length > 0 && (
                   <p className="mt-1 text-xs text-slate-500">
                     Unadjusted: {formatINR(summary.total.expense)} (excluded{" "}

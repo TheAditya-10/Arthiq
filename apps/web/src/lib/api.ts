@@ -217,17 +217,50 @@ export const api = {
     logout: () => request<void>("/auth/logout", { method: "POST", skipRefresh: true }),
     me: () => request<CurrentUser>("/auth/me"),
   },
+  users: {
+    updateMe: (input: Partial<{ displayName: string; timezone: string }>) =>
+      request<CurrentUser>("/users/me", { method: "PATCH", body: input }),
+    deleteMe: () => request<void>("/users/me", { method: "DELETE" }),
+  },
   accounts: {
-    list: () => request<Account[]>("/accounts"),
+    list: (includeArchived = false) =>
+      request<Account[]>("/accounts", { query: { includeArchived: includeArchived || undefined } }),
+    create: (input: {
+      name: string;
+      type: string;
+      openingBalance: number;
+      openingBalanceDate: string;
+    }) => request<Account>("/accounts", { method: "POST", body: input }),
+    update: (
+      id: string,
+      input: Partial<{ name: string; openingBalance: number; openingBalanceDate: string }>,
+    ) => request<Account>(`/accounts/${id}`, { method: "PATCH", body: input }),
+    archive: (id: string) => request<void>(`/accounts/${id}`, { method: "DELETE" }),
+    balance: (id: string) => request<{ balance: number }>(`/accounts/${id}/balance`),
   },
   buckets: {
-    list: () => request<Bucket[]>("/buckets"),
+    list: (includeArchived = false) =>
+      request<Bucket[]>("/buckets", { query: { includeArchived: includeArchived || undefined } }),
+    create: (name: string) => request<Bucket>("/buckets", { method: "POST", body: { name } }),
+    archive: (id: string) => request<void>(`/buckets/${id}`, { method: "DELETE" }),
   },
   subBuckets: {
-    list: (bucketId?: string) => request<SubBucket[]>("/sub-buckets", { query: { bucketId } }),
+    list: (bucketId?: string, includeArchived = false) =>
+      request<SubBucket[]>("/sub-buckets", {
+        query: { bucketId, includeArchived: includeArchived || undefined },
+      }),
+    create: (bucketId: string, name: string) =>
+      request<SubBucket>("/sub-buckets", { method: "POST", body: { bucketId, name } }),
+    archive: (id: string) => request<void>(`/sub-buckets/${id}`, { method: "DELETE" }),
   },
   events: {
-    list: () => request<EventItem[]>("/events"),
+    list: (includeArchived = false) =>
+      request<EventItem[]>("/events", { query: { includeArchived: includeArchived || undefined } }),
+    create: (input: { name: string; startDate?: string; endDate?: string }) =>
+      request<EventItem>("/events", { method: "POST", body: input }),
+    archive: (id: string) => request<void>(`/events/${id}`, { method: "DELETE" }),
+    summary: (id: string) =>
+      request<{ total: number; transactionCount: number }>(`/events/${id}/summary`),
   },
   people: {
     list: () => request<Person[]>("/people"),

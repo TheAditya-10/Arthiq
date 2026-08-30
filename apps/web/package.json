@@ -20,9 +20,11 @@
   },
   "devDependencies": {
     "@arthiq/config": "workspace:*",
+    "@arthiq/database": "workspace:*",
     "@eslint/eslintrc": "^3.2.0",
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.2",
+    "dotenv": "^16.4.7",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "autoprefixer": "^10.4.20",

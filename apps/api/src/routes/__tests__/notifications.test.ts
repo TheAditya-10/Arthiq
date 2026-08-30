@@ -170,4 +170,42 @@ describe("POST /notifications/ingest", () => {
     });
     expect(res.statusCode).toBe(404);
   });
+
+  it("does not false-positive dedup two genuinely different transactions with the same amount", async () => {
+    const { accessToken, accountId } = await setup(app);
+
+    // Same amount as ingestPayload's default (480), but a different merchant
+    // and a time far outside the composite hash's 5-minute bucket window —
+    // docs/DATABASE_DESIGN.md §3/docs/TESTING_STRATEGY.md §2's "two
+    // genuinely different transactions... no false-positive dedup" case.
+    const first = await app.inject({
+      method: "POST",
+      url: "/notifications/ingest",
+      headers: authHeader(accessToken),
+      payload: ingestPayload(accountId, {
+        merchantRaw: "Zomato",
+        occurredAt: "2026-08-10T12:30:00Z",
+        rawTextHash: "hash-a",
+      }),
+    });
+    const second = await app.inject({
+      method: "POST",
+      url: "/notifications/ingest",
+      headers: authHeader(accessToken),
+      payload: ingestPayload(accountId, {
+        merchantRaw: "Swiggy",
+        occurredAt: "2026-08-15T09:00:00Z",
+        rawTextHash: "hash-b",
+      }),
+    });
+    expect(first.json().dedupOutcome).toBe("NEW");
+    expect(second.json().dedupOutcome).toBe("NEW");
+
+    const ledger = await app.inject({
+      method: "GET",
+      url: `/transactions?accountId=${accountId}`,
+      headers: authHeader(accessToken),
+    });
+    expect(ledger.json().total).toBe(2);
+  });
 });
