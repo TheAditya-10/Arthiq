@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { normalizeMerchant } from "@arthiq/types";
+
+export { normalizeMerchant };
 
 /**
  * Composite dedup hash — see docs/DATABASE_DESIGN.md §3 and
@@ -26,16 +29,4 @@ export function computeDedupHash(input: {
     input.normalizedMerchant ?? "",
   ];
   return createHash("sha256").update(parts.join("|")).digest("hex");
-}
-
-/** Uppercases, strips punctuation/legal suffixes and reference-number noise. See docs/CLASSIFICATION_ENGINE.md §3. */
-export function normalizeMerchant(raw: string): string {
-  return raw
-    .toUpperCase()
-    .replace(/\b(PVT|PRIVATE|LTD|LIMITED|LLP|INC)\b\.?/g, "")
-    .replace(/\bUPI\/?[A-Z0-9]*\b/g, "")
-    .replace(/\bREF\.?\s*(NO)?\.?\s*[A-Z0-9]+\b/g, "")
-    .replace(/[^A-Z0-9 ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }

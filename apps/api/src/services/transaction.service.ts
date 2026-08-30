@@ -1,5 +1,15 @@
-import type { PeopleLedgerEntryType, PrismaClient, Transaction } from "@arthiq/database";
-import { PEOPLE_LEDGER_TRANSACTION_TYPES, toMinorUnits } from "@arthiq/types";
+import type {
+  ClassificationSource,
+  PeopleLedgerEntryType,
+  PrismaClient,
+  Transaction,
+} from "@arthiq/database";
+import {
+  CATEGORIZABLE_TRANSACTION_TYPES,
+  PEOPLE_LEDGER_TRANSACTION_TYPES,
+  toMinorUnits,
+} from "@arthiq/types";
+import { classifyTransaction } from "@arthiq/classification";
 import type {
   CreateCashExpenseInput,
   CreateTransactionInput,
@@ -14,13 +24,89 @@ import {
   updateTransaction,
   voidTransaction,
 } from "../repositories/transaction.repository.js";
-import { upsertMerchant } from "../repositories/merchant.repository.js";
+import { upsertMerchant, upsertMerchantRule } from "../repositories/merchant.repository.js";
 import { computeDedupHash, normalizeMerchant } from "../lib/dedup.js";
 import { NotFoundError } from "../lib/errors.js";
+import { buildClassificationContext } from "./classification.context.js";
+import { getAIConfidenceThreshold, getConfiguredAIClassifier } from "./classification.provider.js";
 import { requireAccount } from "./account.service.js";
 import { requireBucket, requireSubBucket } from "./category.service.js";
 import { requireEvent } from "./event.service.js";
 import { requirePerson } from "./person.service.js";
+
+interface ResolvedClassification {
+  bucketId: string | null;
+  subBucketId: string | null;
+  source: ClassificationSource;
+  confidence: number | null;
+  classifiedAt: Date | null;
+  classifiedBy: string | null;
+}
+
+/**
+ * Resolves the bucket/sub-bucket for a categorizable transaction: a
+ * user-supplied bucketId is always MANUAL and authoritative; otherwise the
+ * layered classifier (packages/classification, docs/CLASSIFICATION_ENGINE.md)
+ * runs, and UNKNOWN results leave bucketId null rather than guessing.
+ */
+async function resolveClassification(
+  prisma: PrismaClient,
+  userId: string,
+  input: {
+    type: string;
+    bucketId?: string;
+    subBucketId?: string;
+    merchantRaw?: string;
+    amountMinor: bigint;
+    direction: "DEBIT" | "CREDIT";
+  },
+): Promise<ResolvedClassification> {
+  if (input.bucketId) {
+    return {
+      bucketId: input.bucketId,
+      subBucketId: input.subBucketId ?? null,
+      source: "MANUAL",
+      confidence: null,
+      classifiedAt: new Date(),
+      classifiedBy: userId,
+    };
+  }
+  if (!(CATEGORIZABLE_TRANSACTION_TYPES as readonly string[]).includes(input.type)) {
+    return {
+      bucketId: null,
+      subBucketId: null,
+      source: "UNKNOWN",
+      confidence: null,
+      classifiedAt: null,
+      classifiedBy: null,
+    };
+  }
+
+  const ctx = buildClassificationContext(prisma, userId, getConfiguredAIClassifier());
+  const result = await classifyTransaction(
+    { merchantRaw: input.merchantRaw, amountMinor: input.amountMinor, direction: input.direction },
+    ctx,
+    { aiConfidenceThreshold: getAIConfidenceThreshold() },
+  );
+  if (result.source === "UNKNOWN") {
+    return {
+      bucketId: null,
+      subBucketId: null,
+      source: "UNKNOWN",
+      confidence: null,
+      classifiedAt: null,
+      classifiedBy: null,
+    };
+  }
+  return {
+    bucketId: result.bucketId,
+    subBucketId: result.subBucketId,
+    source: result.source,
+    confidence: result.confidence,
+    classifiedAt: new Date(),
+    classifiedBy: "system",
+  };
+}
 
 async function validateReferences(
   prisma: PrismaClient,
@@ -83,6 +169,14 @@ export async function addTransaction(
   const isPeopleLedgerType = (PEOPLE_LEDGER_TRANSACTION_TYPES as readonly string[]).includes(
     input.type,
   );
+  const classification = await resolveClassification(prisma, userId, {
+    type: input.type,
+    bucketId: input.bucketId,
+    subBucketId: input.subBucketId,
+    merchantRaw: input.merchantRaw,
+    amountMinor,
+    direction: input.direction,
+  });
 
   const transaction = await prisma.$transaction(async (tx) => {
     const created = await createTransaction(tx, {
@@ -96,14 +190,15 @@ export async function addTransaction(
       merchantId,
       merchantRaw: input.merchantRaw,
       description: input.description,
-      bucketId: input.bucketId,
-      subBucketId: input.subBucketId,
+      bucketId: classification.bucketId,
+      subBucketId: classification.subBucketId,
       eventId: input.eventId,
       personId: input.personId,
       source: "MANUAL",
-      classificationSource: input.bucketId ? "MANUAL" : "UNKNOWN",
-      classifiedAt: input.bucketId ? new Date() : null,
-      classifiedBy: input.bucketId ? userId : null,
+      classificationSource: classification.source,
+      classificationConfidence: classification.confidence,
+      classifiedAt: classification.classifiedAt,
+      classifiedBy: classification.classifiedBy,
       status: "CONFIRMED",
       dedupHash,
     });
@@ -175,7 +270,7 @@ export async function editTransaction(
     ? await resolveMerchantId(prisma, userId, input.merchantRaw)
     : undefined;
 
-  return updateTransaction(prisma, userId, id, {
+  const updated = await updateTransaction(prisma, userId, id, {
     ...(input.accountId !== undefined ? { accountId: input.accountId } : {}),
     ...(input.toAccountId !== undefined ? { toAccountId: input.toAccountId } : {}),
     ...(input.type !== undefined ? { type: input.type } : {}),
@@ -188,6 +283,7 @@ export async function editTransaction(
       ? {
           bucketId: input.bucketId,
           classificationSource: "MANUAL",
+          classificationConfidence: null,
           classifiedAt: new Date(),
           classifiedBy: userId,
         }
@@ -196,6 +292,33 @@ export async function editTransaction(
     ...(input.eventId !== undefined ? { eventId: input.eventId } : {}),
     ...(input.personId !== undefined ? { personId: input.personId } : {}),
   });
+
+  // The learning loop (docs/ADR/006, docs/CLASSIFICATION_ENGINE.md §4): a
+  // manual category correction on a transaction with a resolved merchant
+  // becomes a permanent MerchantRule, so future transactions from that
+  // merchant classify via RULE (step 1) without ever re-asking.
+  const effectiveMerchantId = merchantId ?? existing.merchantId;
+  if (input.bucketId !== undefined && effectiveMerchantId) {
+    await upsertMerchantRule(prisma, userId, {
+      merchantId: effectiveMerchantId,
+      bucketId: input.bucketId,
+      subBucketId: input.subBucketId ?? null,
+      createdFrom: "USER_CORRECTION",
+    });
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        entityType: "Transaction",
+        entityId: id,
+        transactionId: id,
+        action: "CLASSIFICATION_OVERRIDDEN",
+        before: { bucketId: existing.bucketId, subBucketId: existing.subBucketId },
+        after: { bucketId: input.bucketId, subBucketId: input.subBucketId ?? null },
+      },
+    });
+  }
+
+  return updated;
 }
 
 export async function removeTransaction(
