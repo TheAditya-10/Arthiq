@@ -146,6 +146,17 @@ export interface PersonWithBalance extends Person {
   outstanding: number;
 }
 
+export interface PeopleLedgerEntryRow {
+  id: string;
+  personId: string;
+  transactionId: string;
+  entryType: "LENT" | "BORROWED" | "REPAYMENT_RECEIVED" | "REPAYMENT_MADE";
+  amount: number;
+  occurredAt: string;
+  dueDate: string | null;
+  notes: string | null;
+}
+
 export interface TransactionRow {
   id: string;
   accountId: string;
@@ -205,6 +216,18 @@ export const api = {
   people: {
     list: () => request<Person[]>("/people"),
     get: (id: string) => request<PersonWithBalance>(`/people/${id}`),
+    create: (input: { name: string; notes?: string }) =>
+      request<Person>("/people", { method: "POST", body: input }),
+    ledger: (id: string) => request<PeopleLedgerEntryRow[]>(`/people/${id}/ledger`),
+    addLedgerEntry: (input: {
+      personId: string;
+      entryType: "LENT" | "BORROWED" | "REPAYMENT_RECEIVED" | "REPAYMENT_MADE";
+      accountId: string;
+      amount: number;
+      occurredAt: string;
+      dueDate?: string;
+      notes?: string;
+    }) => request<TransactionRow>("/people-ledger", { method: "POST", body: input }),
   },
   transactions: {
     list: (query: Record<string, string | number | undefined>) =>

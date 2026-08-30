@@ -1,5 +1,9 @@
 import type { FastifyInstance } from "fastify";
-import { createPersonSchema, updatePersonSchema } from "@arthiq/validation";
+import {
+  createPeopleLedgerEntrySchema,
+  createPersonSchema,
+  updatePersonSchema,
+} from "@arthiq/validation";
 
 import {
   addPerson,
@@ -9,6 +13,7 @@ import {
   removePerson,
   requirePerson,
 } from "../services/person.service.js";
+import { addPeopleLedgerEntry } from "../services/peopleLedger.service.js";
 import { presentAmounts } from "../lib/present.js";
 import { parseOrThrow } from "../lib/validate.js";
 
@@ -53,5 +58,13 @@ export async function peopleRoutes(app: FastifyInstance): Promise<void> {
       orderBy: { occurredAt: "desc" },
     });
     return entries.map((e) => presentAmounts(e, ["amountMinor"]));
+  });
+
+  app.post("/people-ledger", async (request, reply) => {
+    const input = parseOrThrow(createPeopleLedgerEntrySchema, request.body);
+    await requirePerson(app.prisma, request.userId!, input.personId);
+    const transaction = await addPeopleLedgerEntry(app.prisma, request.userId!, input);
+    reply.status(201);
+    return presentAmounts(transaction, ["amountMinor"]);
   });
 }
