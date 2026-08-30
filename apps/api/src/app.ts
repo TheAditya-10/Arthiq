@@ -1,13 +1,19 @@
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
+import { prisma as defaultPrisma, type PrismaClient } from "@arthiq/database";
 
 import { healthRoutes } from "./routes/health.js";
+import { authRoutes } from "./routes/auth.js";
+import authPlugin from "./plugins/auth.js";
 
 export interface BuildAppOptions {
   logger?: boolean;
+  /** Injected for tests (a differently-configured PrismaClient); defaults to the shared singleton. */
+  prismaClient?: PrismaClient;
 }
 
 /**
@@ -41,6 +47,8 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
           },
   });
 
+  app.decorate("prisma", opts.prismaClient ?? defaultPrisma);
+
   const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? "http://localhost:3000")
     .split(",")
     .map((origin) => origin.trim())
@@ -51,11 +59,15 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     credentials: true,
   });
 
+  await app.register(cookie);
+
   await app.register(rateLimit, {
     global: true,
     max: 300,
     timeWindow: "1 minute",
   });
+
+  await app.register(authPlugin);
 
   if (process.env.NODE_ENV !== "production") {
     await app.register(swagger, {
@@ -84,6 +96,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   });
 
   await app.register(healthRoutes);
+  await app.register(authRoutes);
 
   return app;
 }

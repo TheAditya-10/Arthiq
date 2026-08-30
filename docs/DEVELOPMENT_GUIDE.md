@@ -11,7 +11,9 @@ git clone git@github.com:TheAditya-10/Arthiq.git
 cd Arthiq
 pnpm install
 cp .env.example .env            # fill in real values; .env is gitignored
-docker compose up -d db          # starts local Postgres
+docker compose up -d db          # starts local Postgres (if Docker Desktop isn't
+                                  # already running: `systemctl --user start docker-desktop`
+                                  # on Linux, or open the Docker Desktop app)
 pnpm db:migrate                  # applies Prisma migrations
 pnpm db:seed                     # loads development seed data (accounts, buckets, demo txns)
 ```
@@ -116,6 +118,17 @@ pnpm --filter @arthiq/api test
 pnpm --filter @arthiq/web test:e2e   # Playwright, requires web+api+test-db running
 pnpm --filter @arthiq/mobile test    # Jest, parser + component unit tests
 ```
+
+`apps/api`'s integration tests (`docs/TESTING_STRATEGY.md`) run against a real Postgres database, never mocks — set up once:
+
+```bash
+docker exec arthiq-postgres psql -U arthiq -d postgres -c "CREATE DATABASE arthiq_test;"
+DATABASE_URL="postgresql://arthiq:arthiq@localhost:5432/arthiq_test?schema=public" \
+DIRECT_URL="postgresql://arthiq:arthiq@localhost:5432/arthiq_test?schema=public" \
+  pnpm --filter @arthiq/database exec prisma migrate deploy
+```
+
+Add `TEST_DATABASE_URL` to your root `.env` (see `.env.example`) pointing at that database. Tests truncate every table after each test (`apps/api/tests/setup.ts`) — never point `TEST_DATABASE_URL` at a database with real data.
 
 ## 9. Linting/Formatting/Type Checking
 
