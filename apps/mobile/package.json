@@ -1,0 +1,33 @@
+{
+  "name": "@arthiq/mobile",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "prebuild": "expo prebuild -p android",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@arthiq/types": "workspace:*",
+    "@arthiq/validation": "workspace:*",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "expo": "~52.0.0",
+    "expo-notifications": "~0.29.0",
+    "expo-router": "~4.0.0",
+    "expo-secure-store": "~14.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.5"
+  },
+  "devDependencies": {
+    "@arthiq/config": "workspace:*",
+    "@types/react": "~18.3.12",
+    "eslint": "^9.17.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
