@@ -9,6 +9,7 @@ import type { ParsedTransaction } from "./types.js";
 export function toWirePayload(
   parsed: ParsedTransaction,
   meta: {
+    accountId: string;
     provider: NotificationProviderKey;
     sourcePackage: string;
     rawText: string;
@@ -16,6 +17,7 @@ export function toWirePayload(
   },
 ): WireParsedTransaction {
   return {
+    accountId: meta.accountId,
     amountMinor: parsed.amountMinor.toString(),
     direction: parsed.direction,
     merchantRaw: parsed.merchantRaw,

@@ -7,6 +7,13 @@ import type { Direction, NotificationProviderKey } from "./enums.js";
  * See docs/ADR/005-notification-ingestion.md and docs/MOBILE_ARCHITECTURE.md.
  */
 export interface ParsedTransaction {
+  /**
+   * Notification text doesn't reliably identify which bank account a UPI
+   * app drew from, so — same as CSV import's explicit accountId — the
+   * client supplies it (from a per-provider account mapping the user sets
+   * up, mirroring the provider-enable toggles in docs/MOBILE_ARCHITECTURE.md §5).
+   */
+  accountId: string;
   amountMinor: string; // bigint serialized as a string over the wire
   direction: Direction;
   merchantRaw?: string;

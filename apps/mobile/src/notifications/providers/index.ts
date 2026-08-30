@@ -14,6 +14,21 @@ export const NAMED_PROVIDERS: NotificationProvider[] = [
 ];
 
 /**
+ * Picks which parser is responsible for a notification's package name,
+ * without parsing it. Exported separately from `parseNotification` so a
+ * caller that also needs to know *which* provider matched (e.g. to tag the
+ * ingest payload) doesn't have to duplicate this resolution logic.
+ */
+export function resolveNotificationProvider(
+  packageName: string,
+  options: { genericUpiEnabled: boolean } = { genericUpiEnabled: true },
+): NotificationProvider | null {
+  const namedProvider = NAMED_PROVIDERS.find((p) => p.packageNames.includes(packageName));
+  if (namedProvider) return namedProvider;
+  return options.genericUpiEnabled ? GenericUPIParser : null;
+}
+
+/**
  * Picks the right parser for a notification's package name and parses it.
  * Returns null if the package isn't a named provider and the generic
  * fallback also can't confidently extract a transaction — the caller
@@ -24,10 +39,6 @@ export function parseNotification(
   notification: RawNotification,
   options: { genericUpiEnabled: boolean } = { genericUpiEnabled: true },
 ): ParsedTransaction | null {
-  const namedProvider = NAMED_PROVIDERS.find((p) =>
-    p.packageNames.includes(notification.packageName),
-  );
-  if (namedProvider) return namedProvider.parse(notification);
-  if (options.genericUpiEnabled) return GenericUPIParser.parse(notification);
-  return null;
+  const provider = resolveNotificationProvider(notification.packageName, options);
+  return provider ? provider.parse(notification) : null;
 }

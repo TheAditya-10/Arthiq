@@ -6,6 +6,7 @@ import { createInMemoryStorage } from "./testStorage.js";
 
 function payload(overrides: Partial<WireParsedTransaction> = {}): WireParsedTransaction {
   return {
+    accountId: "11111111-1111-1111-1111-111111111111",
     amountMinor: "48000",
     direction: "DEBIT",
     merchantRaw: "Zomato",

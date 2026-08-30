@@ -18,6 +18,7 @@ import { transactionRoutes } from "./routes/transactions.js";
 import { analyticsRoutes } from "./routes/analytics.js";
 import { reconciliationRoutes } from "./routes/reconciliation.js";
 import { importRoutes } from "./routes/imports.js";
+import { notificationRoutes } from "./routes/notifications.js";
 import authPlugin from "./plugins/auth.js";
 
 export interface BuildAppOptions {
@@ -118,6 +119,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(analyticsRoutes);
   await app.register(reconciliationRoutes);
   await app.register(importRoutes);
+  await app.register(notificationRoutes);
 
   return app;
 }

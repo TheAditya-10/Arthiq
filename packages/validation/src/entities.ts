@@ -3,6 +3,7 @@ import {
   AccountType,
   ClassificationSource,
   Direction,
+  NotificationProviderKey,
   PeopleLedgerEntryType,
   TransactionSource,
   TransactionStatus,
@@ -345,3 +346,37 @@ export const createPeopleLedgerEntrySchema = z.object({
   notes: notesSchema,
 });
 export type CreatePeopleLedgerEntryInput = z.infer<typeof createPeopleLedgerEntrySchema>;
+
+// ---------------------------------------------------------------------------
+// Notification Ingestion — see docs/ADR/005-notification-ingestion.md. The
+// mobile client sends amountMinor directly (it's already an integer paise
+// count on-device) rather than a rupee `amount`, unlike the manual/CSV entry
+// points, since re-deriving it from a rupee float would be a pointless
+// lossy-then-lossless round trip for a value that was already exact.
+// ---------------------------------------------------------------------------
+
+export const ingestNotificationSchema = z.object({
+  accountId: z.string().uuid(),
+  amountMinor: z.string().regex(/^\d+$/, "Expected a non-negative integer string"),
+  direction: z.enum([Direction.DEBIT, Direction.CREDIT]),
+  merchantRaw: z.string().trim().max(200).optional(),
+  occurredAt: isoDateTime,
+  referenceId: z.string().trim().max(200).optional(),
+  provider: z.enum([
+    NotificationProviderKey.GOOGLE_PAY,
+    NotificationProviderKey.PHONEPE,
+    NotificationProviderKey.PAYTM,
+    NotificationProviderKey.GENERIC_UPI,
+  ]),
+  sourcePackage: z.string().trim().min(1).max(200),
+  rawTextHash: z.string().trim().min(1).max(128),
+  /** Only ever populated when the device has debug-storage explicitly enabled — see docs/SECURITY.md. */
+  rawText: z.string().max(2000).optional(),
+});
+export type IngestNotificationInput = z.infer<typeof ingestNotificationSchema>;
+
+export const listNotificationSourcesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(200).default(50),
+});
+export type ListNotificationSourcesQuery = z.infer<typeof listNotificationSourcesQuerySchema>;
