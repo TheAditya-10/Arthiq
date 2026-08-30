@@ -1,0 +1,28 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+group = 'dev.arthiq.notificationlistener'
+version = '0.1.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useExpoPublishing()
+
+android {
+  namespace "dev.arthiq.notificationlistener"
+  defaultConfig {
+    minSdkVersion 26
+    targetSdkVersion 34
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  // No extra deps — this module only wraps a stock Android platform API
+  // (NotificationListenerService), never a third-party payment SDK. See
+  // docs/ADR/005-notification-ingestion.md.
+}

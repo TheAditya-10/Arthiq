@@ -17,6 +17,7 @@
     "@arthiq/validation": "workspace:*",
     "@react-native-async-storage/async-storage": "1.23.1",
     "expo": "~52.0.0",
+    "expo-modules-core": "~2.2.0",
     "expo-notifications": "~0.29.0",
     "expo-router": "~4.0.0",
     "expo-secure-store": "~14.0.0",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@arthiq/config": "workspace:*",
+    "@expo/config-plugins": "~9.0.0",
     "@types/react": "~18.3.12",
     "eslint": "^9.17.0",
     "typescript": "^5.7.2",

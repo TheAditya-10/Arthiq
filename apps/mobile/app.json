@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Arthiq",
+    "slug": "arthiq",
+    "scheme": "arthiq",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["android"],
+    "android": {
+      "package": "dev.arthiq.app",
+      "permissions": ["INTERNET", "POST_NOTIFICATIONS"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-notifications",
+      "./plugins/withNotificationListener"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
