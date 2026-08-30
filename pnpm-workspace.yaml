@@ -3,13 +3,20 @@ packages:
   - "packages/*"
 
 allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
   esbuild: true
+  prisma: true
   unrs-resolver: true
 
 # Native/postinstall build scripts explicitly allow-listed after review:
-# esbuild (used by vitest/tsx) and unrs-resolver (used by eslint's import
-# resolver) both ship prebuilt native binaries fetched via a postinstall
-# script — required for those tools to function.
+# esbuild (used by vitest/tsx), unrs-resolver (used by eslint's import
+# resolver), and the Prisma packages (fetch prebuilt query-engine binaries)
+# all ship prebuilt native binaries fetched via a postinstall script —
+# required for those tools to function.
 onlyBuiltDependencies:
   - esbuild
   - unrs-resolver
+  - "@prisma/client"
+  - "@prisma/engines"
+  - prisma

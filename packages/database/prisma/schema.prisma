@@ -1,0 +1,466 @@
+// Arthiq database schema. See docs/DATABASE_DESIGN.md for the full design
+// rationale — this file is the single source of truth; keep that document
+// in sync when you change this schema.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums — keep these identical to packages/types/src/enums.ts
+// ---------------------------------------------------------------------------
+
+enum AccountType {
+  BANK
+  CASH
+  CREDIT_CARD
+  WALLET
+  INVESTMENT
+}
+
+enum TransactionType {
+  EXPENSE
+  INCOME
+  TRANSFER
+  LENT
+  BORROWED
+  LENT_REPAYMENT
+  BORROWED_REPAYMENT
+  CASH_EXPENSE
+  REFUND
+  FEE
+  UNKNOWN
+}
+
+enum Direction {
+  DEBIT
+  CREDIT
+}
+
+enum TransactionSource {
+  ANDROID_NOTIFICATION
+  MANUAL
+  CSV_IMPORT
+  ACCOUNT_AGGREGATOR
+}
+
+enum ClassificationSource {
+  RULE
+  HISTORICAL
+  HEURISTIC
+  AI
+  MANUAL
+  UNKNOWN
+}
+
+enum TransactionStatus {
+  CONFIRMED
+  NEEDS_REVIEW
+  DUPLICATE_SUSPECTED
+  VOIDED
+}
+
+enum PeopleLedgerEntryType {
+  LENT
+  BORROWED
+  REPAYMENT_RECEIVED
+  REPAYMENT_MADE
+}
+
+enum ReconciliationStatus {
+  PENDING
+  MATCHED
+  DISCREPANCY
+  RESOLVED
+}
+
+enum ImportStatus {
+  PENDING_MAPPING
+  PREVIEWED
+  COMMITTED
+  FAILED
+}
+
+enum NotificationProviderKey {
+  GOOGLE_PAY
+  PHONEPE
+  PAYTM
+  GENERIC_UPI
+}
+
+enum DedupOutcome {
+  NEW
+  DUPLICATE
+  REJECTED_UNPARSEABLE
+}
+
+enum MerchantRuleOrigin {
+  USER_CORRECTION
+  SEED
+}
+
+// ---------------------------------------------------------------------------
+// Core
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String?
+  passwordSalt  String?
+  displayName   String
+  timezone      String   @default("Asia/Kolkata")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions        Session[]
+  accounts        Account[]
+  buckets         Bucket[]
+  subBuckets      SubBucket[]
+  merchants       Merchant[]
+  merchantRules   MerchantRule[]
+  events          Event[]
+  people          Person[]
+  transactions    Transaction[]
+  peopleLedger    PeopleLedgerEntry[]
+  reconciliations Reconciliation[]
+  imports         Import[]
+  notifications   NotificationSource[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String
+  userAgent        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Accounts
+// ---------------------------------------------------------------------------
+
+model Account {
+  id                  String      @id @default(uuid())
+  userId              String
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  type                AccountType
+  openingBalanceMinor BigInt
+  openingBalanceDate  DateTime    @db.Date
+  currency            String      @default("INR")
+  archivedAt          DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  transactionsFrom Transaction[] @relation("AccountFrom")
+  transactionsTo   Transaction[] @relation("AccountTo")
+  reconciliations  Reconciliation[]
+  imports          Import[]
+
+  @@index([userId, archivedAt])
+  @@map("accounts")
+}
+
+// ---------------------------------------------------------------------------
+// Categories
+// ---------------------------------------------------------------------------
+
+model Bucket {
+  id         String      @id @default(uuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  archivedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  subBuckets   SubBucket[]
+  transactions Transaction[]
+  merchantRules MerchantRule[]
+
+  @@index([userId, archivedAt])
+  @@map("buckets")
+}
+
+model SubBucket {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bucketId   String
+  bucket     Bucket    @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+  name       String
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  transactions  Transaction[]
+  merchantRules MerchantRule[]
+
+  @@index([userId, bucketId, archivedAt])
+  @@map("sub_buckets")
+}
+
+// ---------------------------------------------------------------------------
+// Merchants & classification memory
+// ---------------------------------------------------------------------------
+
+model Merchant {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  normalizedName String
+  displayName    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  transactions  Transaction[]
+  merchantRules MerchantRule[]
+
+  @@unique([userId, normalizedName])
+  @@map("merchants")
+}
+
+model MerchantRule {
+  id           String             @id @default(uuid())
+  userId       String
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchantId   String
+  merchant     Merchant           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  bucketId     String
+  bucket       Bucket             @relation(fields: [bucketId], references: [id])
+  subBucketId  String?
+  subBucket    SubBucket?         @relation(fields: [subBucketId], references: [id])
+  createdFrom  MerchantRuleOrigin
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([userId, merchantId])
+  @@map("merchant_rules")
+}
+
+// ---------------------------------------------------------------------------
+// Events (trips, one-off occasions) — orthogonal to categories
+// ---------------------------------------------------------------------------
+
+model Event {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  startDate  DateTime? @db.Date
+  endDate    DateTime? @db.Date
+  notes      String?
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  transactions Transaction[]
+
+  @@index([userId, archivedAt])
+  @@map("events")
+}
+
+// ---------------------------------------------------------------------------
+// People Ledger
+// ---------------------------------------------------------------------------
+
+model Person {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  notes      String?
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  transactions Transaction[]
+  ledgerEntries PeopleLedgerEntry[]
+
+  @@index([userId, archivedAt])
+  @@map("people")
+}
+
+model PeopleLedgerEntry {
+  id            String                @id @default(uuid())
+  userId        String
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  personId      String
+  person        Person                @relation(fields: [personId], references: [id], onDelete: Cascade)
+  transactionId String                @unique
+  transaction   Transaction           @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  entryType     PeopleLedgerEntryType
+  amountMinor   BigInt
+  occurredAt    DateTime
+  dueDate       DateTime?             @db.Date
+  notes         String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([userId, personId])
+  @@map("people_ledger_entries")
+}
+
+// ---------------------------------------------------------------------------
+// Transactions — the core ledger. See docs/ADR/004-transaction-model.md.
+// ---------------------------------------------------------------------------
+
+model Transaction {
+  id                        String               @id @default(uuid())
+  userId                    String
+  user                      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId                 String
+  account                   Account              @relation("AccountFrom", fields: [accountId], references: [id])
+  toAccountId               String?
+  toAccount                 Account?             @relation("AccountTo", fields: [toAccountId], references: [id])
+  type                      TransactionType
+  amountMinor               BigInt
+  direction                 Direction
+  occurredAt                DateTime
+  merchantId                String?
+  merchant                  Merchant?            @relation(fields: [merchantId], references: [id])
+  merchantRaw               String?
+  description               String?
+  bucketId                  String?
+  bucket                    Bucket?              @relation(fields: [bucketId], references: [id])
+  subBucketId               String?
+  subBucket                 SubBucket?           @relation(fields: [subBucketId], references: [id])
+  eventId                   String?
+  event                     Event?               @relation(fields: [eventId], references: [id])
+  personId                  String?
+  person                    Person?              @relation(fields: [personId], references: [id])
+  source                    TransactionSource
+  classificationSource      ClassificationSource @default(UNKNOWN)
+  classificationConfidence  Float?
+  classifiedAt              DateTime?
+  classifiedBy              String?
+  status                    TransactionStatus    @default(CONFIRMED)
+  dedupHash                 String
+  importId                  String?
+  import                    Import?              @relation(fields: [importId], references: [id])
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+
+  peopleLedgerEntry  PeopleLedgerEntry?
+  notificationSource NotificationSource?
+  auditLogs          AuditLog[]
+
+  @@index([userId, occurredAt])
+  @@index([userId, type])
+  @@index([userId, bucketId])
+  @@index([userId, eventId])
+  @@index([userId, personId])
+  @@index([userId, dedupHash])
+  @@index([accountId, occurredAt])
+  @@map("transactions")
+}
+
+// ---------------------------------------------------------------------------
+// Reconciliation
+// ---------------------------------------------------------------------------
+
+model Reconciliation {
+  id                           String               @id @default(uuid())
+  userId                       String
+  user                         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId                    String
+  account                      Account              @relation(fields: [accountId], references: [id])
+  periodStart                  DateTime             @db.Date
+  periodEnd                    DateTime             @db.Date
+  openingBalanceMinor          BigInt
+  expectedClosingBalanceMinor  BigInt
+  actualClosingBalanceMinor    BigInt?
+  differenceMinor              BigInt?
+  status                       ReconciliationStatus @default(PENDING)
+  resolutionNotes              String?
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
+
+  @@index([userId, accountId])
+  @@map("reconciliations")
+}
+
+// ---------------------------------------------------------------------------
+// CSV / bank statement import
+// ---------------------------------------------------------------------------
+
+model Import {
+  id              String       @id @default(uuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId       String
+  account         Account      @relation(fields: [accountId], references: [id])
+  fileName        String
+  status          ImportStatus @default(PENDING_MAPPING)
+  columnMapping   Json?
+  rowCount        Int          @default(0)
+  importedCount   Int          @default(0)
+  duplicateCount  Int          @default(0)
+  errorCount      Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  transactions Transaction[]
+
+  @@index([userId, accountId])
+  @@map("imports")
+}
+
+// ---------------------------------------------------------------------------
+// Notification ingestion audit trail
+// ---------------------------------------------------------------------------
+
+model NotificationSource {
+  id             String                  @id @default(uuid())
+  userId         String
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactionId  String?                 @unique
+  transaction    Transaction?            @relation(fields: [transactionId], references: [id])
+  sourcePackage  String
+  provider       NotificationProviderKey
+  rawTextHash    String
+  rawText        String?
+  parseSucceeded Boolean
+  dedupOutcome   DedupOutcome
+  receivedAt     DateTime                @default(now())
+
+  @@index([userId, receivedAt])
+  @@map("notification_sources")
+}
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityType    String
+  entityId      String
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  action        String
+  before        Json?
+  after         Json?
+  at            DateTime     @default(now())
+
+  @@index([userId, entityType, entityId])
+  @@map("audit_logs")
+}

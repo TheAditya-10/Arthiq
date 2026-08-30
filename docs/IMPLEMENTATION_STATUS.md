@@ -23,7 +23,13 @@ _Update this file at the end of every phase (Rule 15)._
 
 ## Phase 2 — Database Schema & Migrations
 
-- **Status**: Not started
+- **Status**: Complete
+- **Completed work**: `packages/database` — full Prisma schema (`prisma/schema.prisma`) matching `docs/DATABASE_DESIGN.md` (User, Session, Account, Bucket, SubBucket, Merchant, MerchantRule, Event, Person, Transaction, PeopleLedgerEntry, Reconciliation, Import, NotificationSource, AuditLog, all enums), `prisma.config.ts` (explicit root-`.env` loading, since Prisma config files opt out of Prisma's automatic env loading), initial migration (`20260830000756_init`), and a substantial dev-only seed script (`prisma/seed.ts`) implementing the Croma/MerchantRule, Goa Trip event, and Rahul lending/repayment strands of the demo scenario (spec §44), plus several months of routine Food/Transport/Income/Transfer/Cash transactions for later analytics testing. `packages/types` — dependency-free shared enums mirroring the schema exactly, plus `toMinorUnits`/`fromMinorUnits`/`formatMinorUnitsAsINR` money helpers (kept out of `packages/database` deliberately so the Prisma-free mobile app can use the same conversion logic — see updated `docs/ADR/002-database.md`), and a `ParsedTransaction` interface shared between the future mobile parsers and the notification-ingestion API. `apps/api`'s dev script now loads the root `.env` via `dotenv-cli` (Next.js/Prisma each load env independently, documented in `docs/DEVELOPMENT_GUIDE.md`).
+- **Verification performed**: Started local Postgres via Docker Compose (had to `systemctl --user start docker-desktop` first, since the Docker daemon wasn't running in this environment), ran `prisma migrate dev` (created and applied the initial migration against a real database) and `prisma db seed` (completed successfully), then queried the seeded data directly (`SELECT type, count(*), sum(amountMinor) FROM transactions GROUP BY type` — 6 transaction types present with correct sums). Full workspace `pnpm lint`, `pnpm typecheck`, `pnpm test` (added and passed 7 real unit tests for the money helpers, covering float-drift-prone conversions), and `pnpm build` all pass.
+- **Remaining work**: `packages/validation` (Zod schemas) and `packages/classification` remain empty, per plan, until Phases 4–5.
+- **Known issues**: None outstanding for this phase.
+- **Tests**: `packages/types` — 7/7 passing (money conversion, including the classic `480.1 * 100` float-drift case). No API/DB-layer tests yet — those land with the services that use them in Phase 3+.
+- **Next action**: Begin Phase 3 (authentication) — `/auth` endpoints in `apps/api`, wiring `@arthiq/database` as a real dependency of the API for the first time.
 
 ## Phase 3 — Authentication
 
