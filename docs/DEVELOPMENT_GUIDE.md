@@ -115,8 +115,13 @@ This creates a new migration file, applies it locally, and regenerates the Prism
 pnpm test                         # everything
 pnpm --filter @arthiq/classification test
 pnpm --filter @arthiq/api test
-pnpm --filter @arthiq/web test:e2e   # Playwright, requires web+api+test-db running
-pnpm --filter @arthiq/mobile test    # Jest, parser + component unit tests
+pnpm --filter @arthiq/web test:e2e   # Playwright — starts its own web+api dev servers on
+                                      # dedicated ports (4100/3100) against TEST_DATABASE_URL,
+                                      # so it won't conflict with your own running dev servers.
+                                      # Only requires Docker Postgres already up.
+pnpm --filter @arthiq/mobile test    # Vitest — parser/dedup/sync-queue/auth/API-client/
+                                      # notification-content unit tests only; no RN component
+                                      # or native-module tests (see docs/TESTING_STRATEGY.md).
 ```
 
 `apps/api`'s integration tests (`docs/TESTING_STRATEGY.md`) run against a real Postgres database, never mocks — set up once:

@@ -48,11 +48,11 @@ The Android app is built and installed locally (APK/AAB via Gradle, sideloaded o
 
 ## 5. Environments
 
-| Env         | Web                                                                                   | API                                           | DB                                                                  |
-| ----------- | ------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------- |
-| development | `next dev` on localhost                                                               | `apps/api` via `pnpm dev` (ts-node/tsx watch) | Docker Compose Postgres                                             |
-| test        | not applicable (Playwright drives `next start` against a test build when running E2E) | same binary, `NODE_ENV=test`                  | separate Docker Postgres database/schema, migrated fresh per CI run |
-| production  | Vercel                                                                                | Vercel or container (Option A/B above)        | managed Postgres (Neon/Supabase/etc.)                               |
+| Env         | Web                                                                                                                                        | API                                    | DB                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| development | `next dev` on localhost                                                                                                                    | `apps/api` via `pnpm dev` (tsx watch)  | Docker Compose Postgres                                                                                                                 |
+| test        | `next dev` on a dedicated port (3100) — see `apps/web/playwright.config.ts`'s `webServer` entries — driven by Playwright for the E2E suite | same binary, dedicated port (4100)     | dedicated `arthiq_test` database in the same Docker Compose Postgres, truncated by `apps/web/e2e/global-setup.ts` before the suite runs |
+| production  | Vercel                                                                                                                                     | Vercel or container (Option A/B above) | managed Postgres (Neon/Supabase/etc.)                                                                                                   |
 
 ## 6. Rollback
 
