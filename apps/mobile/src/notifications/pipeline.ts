@@ -1,7 +1,11 @@
-import type { NotificationProviderKey } from "@arthiq/types";
+import type {
+  NotificationProviderKey,
+  ParsedTransaction as WireParsedTransaction,
+} from "@arthiq/types";
 import { computeLocalDedupHash, DedupCache, type KeyValueStorage } from "./dedupCache.js";
+import type { IngestSendResult } from "./ingestClient.js";
 import { resolveNotificationProvider } from "./providers/index.js";
-import { SyncQueue, type SendFn } from "./syncQueue.js";
+import { SyncQueue } from "./syncQueue.js";
 import type { RawNotification } from "./types.js";
 import { toWirePayload } from "./wireFormat.js";
 
@@ -24,8 +28,16 @@ export interface ListenerSubscription {
 
 export interface NotificationPipelineOptions {
   storage: KeyValueStorage;
-  send: SendFn;
+  /** The rich sender (`ingestClient.ts`'s `createIngestSendFn().sendRich`) — used directly for the immediate/online path, and adapted into `SyncQueue`'s boolean `SendFn` for the offline-retry path. */
+  sendRich: (payload: WireParsedTransaction) => Promise<IngestSendResult>;
   resolveAccountId: AccountResolver;
+  /**
+   * Fired after a successful *immediate* send (not a later queued retry) —
+   * this is what drives the local "Correct/Change" notification
+   * (docs/MOBILE_ARCHITECTURE.md §3), since only the immediate path has a
+   * moment worth notifying about and a classification result to show.
+   */
+  onIngested?: (result: IngestSendResult) => void;
   /**
    * Starts the native listener and returns a subscription. Injected rather
    * than importing `modules/notification-listener` directly, so this class
@@ -55,7 +67,10 @@ export class NotificationPipeline {
 
   constructor(private readonly options: NotificationPipelineOptions) {
     this.dedupCache = new DedupCache(options.storage);
-    this.syncQueue = new SyncQueue(options.storage, options.send);
+    this.syncQueue = new SyncQueue(
+      options.storage,
+      async (payload) => (await options.sendRich(payload)).ok,
+    );
   }
 
   /** Starts listening for native notification events. No-op if already started. */
@@ -73,9 +88,14 @@ export class NotificationPipeline {
   }
 
   /**
-   * Processes a single raw notification through parse -> dedup -> enqueue ->
-   * flush. Exposed directly (not just via `start`'s event subscription) so
-   * it's unit-testable without a native listener.
+   * Processes a single raw notification through parse -> dedup -> resolve
+   * account -> send. Tries an immediate direct send first (the common
+   * online case — no storage round-trip needed, and it's the only path
+   * that can drive `onIngested`'s local notification with a real
+   * classification result); only falls back to the persisted `SyncQueue`
+   * when that immediate send fails, e.g. offline. Exposed directly (not
+   * just via `start`'s event subscription) so it's unit-testable without a
+   * native listener.
    */
   async handle(notification: RawNotification): Promise<{ sent: number; remaining: number } | null> {
     const provider = resolveNotificationProvider(notification.packageName, {
@@ -104,6 +124,12 @@ export class NotificationPipeline {
       rawText: `${notification.title}\n${notification.text}`,
       includeRawText: this.options.includeRawText ?? false,
     });
+
+    const result = await this.options.sendRich(payload);
+    if (result.ok) {
+      this.options.onIngested?.(result);
+      return { sent: 1, remaining: await this.syncQueue.size() };
+    }
 
     await this.syncQueue.enqueue(payload);
     return this.syncQueue.flush();

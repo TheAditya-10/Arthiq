@@ -2,6 +2,62 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# apps/web (React 19) and apps/mobile (React 18, pinned by react-native
+# 0.76) coexist in one workspace. `@types/react` isn't a declared peer
+# dependency of `next` or `@react-navigation/*` (only the runtime `react`
+# package is), so pnpm never materializes a per-consumer instance of it for
+# them — TypeScript falls back to a single ambiguous shared lookup
+# (node_modules/.pnpm/node_modules/@types/react) that can only ever hold one
+# version, breaking whichever app didn't win it. Declaring it here as an
+# (optional) peer forces pnpm to resolve — and materialize — a properly
+# scoped instance per consumer, the same way it already does for `react`
+# itself, eliminating the ambiguity instead of leaving it to install-order
+# luck. See docs/IMPLEMENTATION_STATUS.md's Phase 13 entry for how this was
+# diagnosed.
+packageExtensions:
+  next:
+    peerDependencies:
+      "@types/react": "*"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+  "@react-navigation/core":
+    peerDependencies:
+      "@types/react": "*"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+  "@react-navigation/native":
+    peerDependencies:
+      "@types/react": "*"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+  "@react-navigation/native-stack":
+    peerDependencies:
+      "@types/react": "*"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+  "@react-navigation/bottom-tabs":
+    peerDependencies:
+      "@types/react": "*"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+  "@react-navigation/elements":
+    peerDependencies:
+      "@types/react": "*"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+  expo-router:
+    peerDependencies:
+      "@types/react": "*"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true

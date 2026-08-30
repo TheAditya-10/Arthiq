@@ -31,14 +31,16 @@ function fakeSubscribe(): {
 }
 
 describe("NotificationPipeline.handle", () => {
-  it("parses, enqueues, and sends a valid notification when an account is mapped", async () => {
+  it("parses and sends a valid notification immediately when an account is mapped, firing onIngested", async () => {
     const sent: unknown[] = [];
+    const ingested: unknown[] = [];
     const pipeline = new NotificationPipeline({
       storage: createInMemoryStorage(),
-      send: async (payload) => {
+      sendRich: async (payload) => {
         sent.push(payload);
-        return true;
+        return { ok: true, dedupOutcome: "NEW", transaction: { id: "txn-1" } as never };
       },
+      onIngested: (result) => ingested.push(result),
       resolveAccountId: () => "11111111-1111-1111-1111-111111111111",
       subscribe: () => ({ remove: () => {} }),
     });
@@ -52,12 +54,30 @@ describe("NotificationPipeline.handle", () => {
       direction: "DEBIT",
       provider: "GOOGLE_PAY",
     });
+    expect(ingested).toHaveLength(1);
+    expect(await pipeline.queueSize()).toBe(0);
+  });
+
+  it("falls back to the persisted queue when the immediate send fails, without firing onIngested", async () => {
+    let ingestedCount = 0;
+    const pipeline = new NotificationPipeline({
+      storage: createInMemoryStorage(),
+      sendRich: async () => ({ ok: false }),
+      onIngested: () => ingestedCount++,
+      resolveAccountId: () => "11111111-1111-1111-1111-111111111111",
+      subscribe: () => ({ remove: () => {} }),
+    });
+
+    const result = await pipeline.handle(GPAY_DEBIT);
+    expect(result).toEqual({ sent: 0, remaining: 1 });
+    expect(ingestedCount).toBe(0);
+    expect(await pipeline.queueSize()).toBe(1);
   });
 
   it("drops the notification when no account is mapped for that provider yet", async () => {
     const pipeline = new NotificationPipeline({
       storage: createInMemoryStorage(),
-      send: async () => true,
+      sendRich: async () => ({ ok: true }),
       resolveAccountId: () => null,
       subscribe: () => ({ remove: () => {} }),
     });
@@ -70,7 +90,7 @@ describe("NotificationPipeline.handle", () => {
   it("drops a notification from an unparseable/unallowed package without enqueueing", async () => {
     const pipeline = new NotificationPipeline({
       storage: createInMemoryStorage(),
-      send: async () => true,
+      sendRich: async () => ({ ok: true }),
       resolveAccountId: () => "11111111-1111-1111-1111-111111111111",
       subscribe: () => ({ remove: () => {} }),
       genericUpiEnabled: false,
@@ -85,9 +105,9 @@ describe("NotificationPipeline.handle", () => {
     let sendCount = 0;
     const pipeline = new NotificationPipeline({
       storage,
-      send: async () => {
+      sendRich: async () => {
         sendCount += 1;
-        return true;
+        return { ok: true };
       },
       resolveAccountId: () => "11111111-1111-1111-1111-111111111111",
       subscribe: () => ({ remove: () => {} }),
@@ -99,11 +119,11 @@ describe("NotificationPipeline.handle", () => {
     expect(sendCount).toBe(1);
   });
 
-  it("never checks account mapping or enqueues for a duplicate — the dedup check runs before account resolution", async () => {
+  it("never checks account mapping or sends for a duplicate — the dedup check runs before account resolution", async () => {
     let resolveCalls = 0;
     const pipeline = new NotificationPipeline({
       storage: createInMemoryStorage(),
-      send: async () => true,
+      sendRich: async () => ({ ok: true }),
       resolveAccountId: () => {
         resolveCalls += 1;
         return "11111111-1111-1111-1111-111111111111";
@@ -121,9 +141,9 @@ describe("NotificationPipeline.handle", () => {
     const sent: unknown[] = [];
     const pipeline = new NotificationPipeline({
       storage: createInMemoryStorage(),
-      send: async (payload) => {
+      sendRich: async (payload) => {
         sent.push(payload);
-        return true;
+        return { ok: true };
       },
       resolveAccountId: () => "11111111-1111-1111-1111-111111111111",
       subscribe: fake.subscribe,

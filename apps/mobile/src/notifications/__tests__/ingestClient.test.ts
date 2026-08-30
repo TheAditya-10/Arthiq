@@ -21,29 +21,40 @@ describe("createIngestSendFn", () => {
     vi.unstubAllGlobals();
   });
 
-  it("returns false without making a request when there's no access token", async () => {
+  it("returns not-ok without making a request when there's no access token", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const send = createIngestSendFn({
+    const { send, sendRich } = createIngestSendFn({
       baseUrl: "https://api.arthiq.app",
       getAccessToken: async () => null,
     });
 
-    const result = await send(payload());
-    expect(result).toBe(false);
+    expect(await sendRich(payload())).toEqual({ ok: false });
+    expect(await send(payload())).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("POSTs to /notifications/ingest with a bearer token and the mobile client header", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+  it("POSTs to /notifications/ingest with a bearer token and the mobile client header, returning the parsed result", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        dedupOutcome: "NEW",
+        transaction: { id: "txn-1", bucketId: "b1", subBucketId: null, amount: 480 },
+      }),
+    });
     vi.stubGlobal("fetch", fetchMock);
-    const send = createIngestSendFn({
+    const { send, sendRich } = createIngestSendFn({
       baseUrl: "https://api.arthiq.app",
       getAccessToken: async () => "token123",
     });
 
-    const result = await send(payload());
-    expect(result).toBe(true);
+    expect(await send(payload())).toBe(true);
+    const result = await sendRich(payload());
+    expect(result).toEqual({
+      ok: true,
+      dedupOutcome: "NEW",
+      transaction: { id: "txn-1", bucketId: "b1", subBucketId: null, amount: 480 },
+    });
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.arthiq.app/notifications/ingest",
       expect.objectContaining({
@@ -60,13 +71,24 @@ describe("createIngestSendFn", () => {
     });
   });
 
-  it("returns false on a non-ok response", async () => {
+  it("returns not-ok on a non-ok response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 429 }));
-    const send = createIngestSendFn({
+    const { send, sendRich } = createIngestSendFn({
       baseUrl: "https://api.arthiq.app",
       getAccessToken: async () => "token123",
     });
 
     expect(await send(payload())).toBe(false);
+    expect(await sendRich(payload())).toEqual({ ok: false });
+  });
+
+  it("returns not-ok, without throwing, on a network error", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Network request failed")));
+    const { sendRich } = createIngestSendFn({
+      baseUrl: "https://api.arthiq.app",
+      getAccessToken: async () => "token123",
+    });
+
+    expect(await sendRich(payload())).toEqual({ ok: false });
   });
 });
