@@ -1,0 +1,94 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
+import { ApiClientError } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+
+export default function RegisterPage() {
+  const { register } = useAuth();
+  const router = useRouter();
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await register(email, password, displayName);
+      router.push("/transactions");
+    } catch (err) {
+      setError(
+        err instanceof ApiClientError ? err.message : "Something went wrong. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <h1 className="mb-1 text-2xl font-semibold tracking-tight">Arthiq</h1>
+        <p className="mb-6 text-sm text-slate-600">Create your account</p>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="displayName">Name</Label>
+            <Input
+              id="displayName"
+              autoComplete="name"
+              required
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
+          </div>
+          {error && (
+            <p role="alert" className="text-sm text-red-600">
+              {error}
+            </p>
+          )}
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting ? "Creating account..." : "Create account"}
+          </Button>
+        </form>
+        <p className="mt-4 text-sm text-slate-600">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-slate-900 underline">
+            Sign in
+          </Link>
+        </p>
+      </div>
+    </main>
+  );
+}
