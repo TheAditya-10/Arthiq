@@ -1,5 +1,257 @@
-import { ComingSoon } from "@/components/coming-soon";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  type BucketTotal,
+  type EventItem,
+  type MonthlySummary,
+  type TrendPoint,
+  api,
+} from "@/lib/api";
+
+function currentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatINR(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function ChangeBadge({ percent }: { percent: number | null }) {
+  if (percent === null) {
+    return <span className="text-xs text-slate-400">—</span>;
+  }
+  const up = percent > 0;
+  return (
+    <span className={`text-xs font-medium ${up ? "text-red-600" : "text-emerald-600"}`}>
+      {up ? "▲" : "▼"} {Math.abs(percent).toFixed(1)}%
+    </span>
+  );
+}
 
 export default function DashboardPage() {
-  return <ComingSoon title="Dashboard" phase="Phase 7 (web dashboard & analytics)" />;
+  const [month, setMonth] = useState(currentMonth());
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [excludedEventIds, setExcludedEventIds] = useState<string[]>([]);
+
+  const [summary, setSummary] = useState<MonthlySummary | null>(null);
+  const [byBucket, setByBucket] = useState<BucketTotal[]>([]);
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
+  const [insights, setInsights] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.events
+      .list()
+      .then(setEvents)
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const [year, mon] = month.split("-").map(Number);
+    const from = `${month}-01`;
+    const to = new Date(Date.UTC(year!, mon!, 1)).toISOString().slice(0, 10);
+
+    Promise.all([
+      api.analytics.summary(month, excludedEventIds),
+      api.analytics.byBucket(month, excludedEventIds),
+      api.analytics.trend(from, to, "daily"),
+      api.analytics.insights(month),
+    ])
+      .then(([s, b, t, i]) => {
+        setSummary(s);
+        setByBucket(b);
+        setTrend(t);
+        setInsights(i.insights);
+      })
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+  }, [month, excludedEventIds]);
+
+  const bucketChartData = useMemo(
+    () => byBucket.slice(0, 8).map((b) => ({ name: b.bucketName, total: b.total })),
+    [byBucket],
+  );
+
+  function toggleEvent(id: string) {
+    setExcludedEventIds((prev) =>
+      prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id],
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <Input
+          type="month"
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          className="w-auto"
+        />
+      </div>
+
+      {events.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+          <span className="font-medium text-slate-600">Exclude events:</span>
+          {events.map((ev) => (
+            <label key={ev.id} className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={excludedEventIds.includes(ev.id)}
+                onChange={() => toggleEvent(ev.id)}
+              />
+              {ev.name}
+            </label>
+          ))}
+        </div>
+      )}
+
+      {loading || !summary ? (
+        <p className="text-sm text-slate-500">Loading...</p>
+      ) : (
+        <>
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Card>
+              <CardHeader className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Total Spending{excludedEventIds.length > 0 ? " (adjusted)" : ""}
+              </CardHeader>
+              <CardBody>
+                <p className="text-2xl font-semibold">{formatINR(summary.adjusted.expense)}</p>
+                {excludedEventIds.length > 0 && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Unadjusted: {formatINR(summary.total.expense)} (excluded{" "}
+                    {formatINR(summary.excludedAmount)})
+                  </p>
+                )}
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  <span className="text-xs text-slate-500">
+                    vs last month{" "}
+                    <ChangeBadge percent={summary.comparison.previousMonth.percentChange} />
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    vs 3-mo avg{" "}
+                    <ChangeBadge percent={summary.comparison.threeMonthAvg.percentChange} />
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    vs 6-mo avg{" "}
+                    <ChangeBadge percent={summary.comparison.sixMonthAvg.percentChange} />
+                  </span>
+                </div>
+              </CardBody>
+            </Card>
+            <Card>
+              <CardHeader className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Total Income
+              </CardHeader>
+              <CardBody>
+                <p className="text-2xl font-semibold text-emerald-700">
+                  {formatINR(summary.adjusted.income)}
+                </p>
+              </CardBody>
+            </Card>
+            <Card>
+              <CardHeader className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Net Cash Flow
+              </CardHeader>
+              <CardBody>
+                <p
+                  className={`text-2xl font-semibold ${summary.adjusted.netCashFlow >= 0 ? "text-emerald-700" : "text-red-600"}`}
+                >
+                  {formatINR(summary.adjusted.netCashFlow)}
+                </p>
+              </CardBody>
+            </Card>
+          </div>
+
+          {insights.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader className="text-sm font-medium">Insights</CardHeader>
+              <CardBody>
+                <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+                  {insights.map((insight, i) => (
+                    <li key={i}>{insight}</li>
+                  ))}
+                </ul>
+              </CardBody>
+            </Card>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="text-sm font-medium">Spending by bucket</CardHeader>
+              <CardBody>
+                {bucketChartData.length === 0 ? (
+                  <p className="text-sm text-slate-500">No categorized spending this month.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={bucketChartData} layout="vertical" margin={{ left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tickFormatter={(v) => formatINR(v)} fontSize={12} />
+                      <YAxis type="category" dataKey="name" width={90} fontSize={12} />
+                      <Tooltip formatter={(v: number) => formatINR(v)} />
+                      <Bar dataKey="total" fill="#0f172a" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader className="text-sm font-medium">Daily trend</CardHeader>
+              <CardBody>
+                {trend.length === 0 ? (
+                  <p className="text-sm text-slate-500">No transactions this month.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <LineChart data={trend}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" fontSize={11} tickFormatter={(d) => d.slice(8)} />
+                      <YAxis tickFormatter={(v) => formatINR(v)} fontSize={12} width={70} />
+                      <Tooltip formatter={(v: number) => formatINR(v)} />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="expense"
+                        stroke="#dc2626"
+                        name="Expense"
+                        dot={false}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="income"
+                        stroke="#059669"
+                        name="Income"
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardBody>
+            </Card>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }

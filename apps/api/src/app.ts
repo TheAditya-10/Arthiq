@@ -14,6 +14,7 @@ import { merchantRuleRoutes } from "./routes/merchantRules.js";
 import { eventRoutes } from "./routes/events.js";
 import { peopleRoutes } from "./routes/people.js";
 import { transactionRoutes } from "./routes/transactions.js";
+import { analyticsRoutes } from "./routes/analytics.js";
 import authPlugin from "./plugins/auth.js";
 
 export interface BuildAppOptions {
@@ -110,6 +111,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(eventRoutes);
   await app.register(peopleRoutes);
   await app.register(transactionRoutes);
+  await app.register(analyticsRoutes);
 
   return app;
 }

@@ -260,6 +260,31 @@ export type CreateCashExpenseInput = z.infer<typeof createCashExpenseSchema>;
 // People Ledger
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Analytics
+// ---------------------------------------------------------------------------
+
+const monthSchema = z.string().regex(/^\d{4}-\d{2}$/, "Expected YYYY-MM");
+
+export const monthlySummaryQuerySchema = z.object({
+  month: monthSchema,
+  excludeEventIds: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v.split(",").filter(Boolean) : [])),
+});
+export type MonthlySummaryQuery = z.infer<typeof monthlySummaryQuerySchema>;
+
+export const byBucketQuerySchema = monthlySummaryQuerySchema;
+export const insightsQuerySchema = z.object({ month: monthSchema });
+
+export const trendQuerySchema = z.object({
+  from: isoDate,
+  to: isoDate,
+  granularity: z.enum(["daily", "monthly"]).default("daily"),
+});
+export type TrendQuery = z.infer<typeof trendQuerySchema>;
+
 export const createPeopleLedgerEntrySchema = z.object({
   personId: z.string().uuid(),
   entryType: z.enum([

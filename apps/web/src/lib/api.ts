@@ -220,4 +220,44 @@ export const api = {
     ) => request<TransactionRow>(`/transactions/${id}`, { method: "PATCH", body: input }),
     remove: (id: string) => request<void>(`/transactions/${id}`, { method: "DELETE" }),
   },
+  analytics: {
+    summary: (month: string, excludeEventIds: string[] = []) =>
+      request<MonthlySummary>("/analytics/summary", {
+        query: { month, excludeEventIds: excludeEventIds.join(",") || undefined },
+      }),
+    byBucket: (month: string, excludeEventIds: string[] = []) =>
+      request<BucketTotal[]>("/analytics/by-bucket", {
+        query: { month, excludeEventIds: excludeEventIds.join(",") || undefined },
+      }),
+    trend: (from: string, to: string, granularity: "daily" | "monthly" = "daily") =>
+      request<TrendPoint[]>("/analytics/trend", { query: { from, to, granularity } }),
+    insights: (month: string) =>
+      request<{ insights: string[] }>("/analytics/insights", { query: { month } }),
+  },
 };
+
+export interface MonthlySummary {
+  month: string;
+  total: { expense: number; income: number; netCashFlow: number };
+  adjusted: { expense: number; income: number; netCashFlow: number };
+  excludedAmount: number;
+  comparison: {
+    previousMonth: { expense: number; percentChange: number | null };
+    threeMonthAvg: { expense: number; percentChange: number | null };
+    sixMonthAvg: { expense: number; percentChange: number | null };
+    twelveMonthAvg: { expense: number; percentChange: number | null };
+  };
+}
+
+export interface BucketTotal {
+  bucketId: string;
+  bucketName: string;
+  total: number;
+  subBuckets: { subBucketId: string; subBucketName: string; total: number }[];
+}
+
+export interface TrendPoint {
+  date: string;
+  expense: number;
+  income: number;
+}
