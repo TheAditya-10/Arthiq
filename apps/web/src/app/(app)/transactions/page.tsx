@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,7 +117,12 @@ export default function TransactionsPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold tracking-tight">Transactions</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
+        <Link href="/transactions/import">
+          <Button variant="secondary">Import CSV</Button>
+        </Link>
+      </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
         <Input

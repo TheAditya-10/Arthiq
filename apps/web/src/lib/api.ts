@@ -91,6 +91,22 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 }
 
+/** For multipart uploads — bypasses the JSON content-type/serialization in rawRequest. */
+async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
+  const res = await fetch(buildUrl(path), {
+    method: "POST",
+    credentials: "include",
+    headers: currentAccessToken ? { authorization: `Bearer ${currentAccessToken}` } : {},
+    body: formData,
+  });
+  const payload = await res.json().catch(() => null);
+  if (!res.ok) {
+    const error = payload?.error ?? { code: "UNKNOWN", message: res.statusText };
+    throw new ApiClientError(error.message, res.status, error.code, error.details);
+  }
+  return payload as T;
+}
+
 // ---------------------------------------------------------------------------
 // Domain types (kept intentionally light — the API is the source of truth;
 // these describe only what the web app actually reads/writes today).
@@ -243,6 +259,19 @@ export const api = {
     ) => request<TransactionRow>(`/transactions/${id}`, { method: "PATCH", body: input }),
     remove: (id: string) => request<void>(`/transactions/${id}`, { method: "DELETE" }),
   },
+  imports: {
+    preview: (accountId: string, file: File) => {
+      const formData = new FormData();
+      formData.append("accountId", accountId);
+      formData.append("file", file);
+      return uploadRequest<ImportPreview>("/imports/preview", formData);
+    },
+    commit: (importId: string, columnMapping: ColumnMapping) =>
+      request<ImportCommitResult>(`/imports/${importId}/commit`, {
+        method: "POST",
+        body: { columnMapping },
+      }),
+  },
   reconciliation: {
     list: (accountId?: string) =>
       request<ReconciliationRow[]>("/reconciliation", { query: { accountId } }),
@@ -302,6 +331,30 @@ export interface TrendPoint {
   date: string;
   expense: number;
   income: number;
+}
+
+export interface ColumnMapping {
+  date: number;
+  description?: number;
+  amount: number;
+  direction?: number;
+}
+
+export interface ImportPreview {
+  importId: string;
+  headers: string[];
+  suggestedMapping: ColumnMapping;
+  previewRows: string[][];
+  totalRows: number;
+}
+
+export interface ImportCommitResult {
+  id: string;
+  status: string;
+  rowCount: number;
+  importedCount: number;
+  duplicateCount: number;
+  errorCount: number;
 }
 
 export interface ReconciliationRow {

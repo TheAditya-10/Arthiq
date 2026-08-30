@@ -409,6 +409,10 @@ model Import {
   fileName        String
   status          ImportStatus @default(PENDING_MAPPING)
   columnMapping   Json?
+  /// Parsed CSV rows, held only between preview and commit; cleared to null
+  /// once committed (or on failure) — see docs/SECURITY.md's "the original
+  /// file itself is not persisted server-side beyond the import session."
+  stagedRows      Json?
   rowCount        Int          @default(0)
   importedCount   Int          @default(0)
   duplicateCount  Int          @default(0)

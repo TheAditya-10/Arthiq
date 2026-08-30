@@ -147,10 +147,17 @@ const PEOPLE_LEDGER_ENTRY_TYPE_FOR_TRANSACTION_TYPE: Record<string, PeopleLedger
   BORROWED_REPAYMENT: "REPAYMENT_MADE",
 };
 
+export interface AddTransactionOptions {
+  /** Internal-only override — never settable via the public POST /transactions route, which is always MANUAL. Used by the CSV import service (Phase 14). */
+  source?: "MANUAL" | "CSV_IMPORT" | "ANDROID_NOTIFICATION" | "ACCOUNT_AGGREGATOR";
+  importId?: string;
+}
+
 export async function addTransaction(
   prisma: PrismaClient,
   userId: string,
   input: CreateTransactionInput,
+  options: AddTransactionOptions = {},
 ): Promise<Transaction> {
   await validateReferences(prisma, userId, input);
   const merchantId = await resolveMerchantId(prisma, userId, input.merchantRaw);
@@ -194,7 +201,8 @@ export async function addTransaction(
       subBucketId: classification.subBucketId,
       eventId: input.eventId,
       personId: input.personId,
-      source: "MANUAL",
+      source: options.source ?? "MANUAL",
+      importId: options.importId,
       classificationSource: classification.source,
       classificationConfidence: classification.confidence,
       classifiedAt: classification.classifiedAt,

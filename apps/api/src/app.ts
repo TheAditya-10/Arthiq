@@ -1,6 +1,7 @@
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
@@ -16,6 +17,7 @@ import { peopleRoutes } from "./routes/people.js";
 import { transactionRoutes } from "./routes/transactions.js";
 import { analyticsRoutes } from "./routes/analytics.js";
 import { reconciliationRoutes } from "./routes/reconciliation.js";
+import { importRoutes } from "./routes/imports.js";
 import authPlugin from "./plugins/auth.js";
 
 export interface BuildAppOptions {
@@ -68,6 +70,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   });
 
   await app.register(cookie);
+  await app.register(multipart);
 
   await app.register(rateLimit, {
     global: true,
@@ -114,6 +117,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(transactionRoutes);
   await app.register(analyticsRoutes);
   await app.register(reconciliationRoutes);
+  await app.register(importRoutes);
 
   return app;
 }

@@ -261,6 +261,23 @@ export type CreateCashExpenseInput = z.infer<typeof createCashExpenseSchema>;
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
+// CSV Import
+// ---------------------------------------------------------------------------
+
+export const columnMappingSchema = z.object({
+  date: z.number().int().min(0),
+  description: z.number().int().min(0).optional(),
+  amount: z.number().int().min(0),
+  direction: z.number().int().min(0).optional(),
+});
+export type ColumnMappingInput = z.infer<typeof columnMappingSchema>;
+
+export const commitImportSchema = z.object({
+  columnMapping: columnMappingSchema,
+});
+export type CommitImportInput = z.infer<typeof commitImportSchema>;
+
+// ---------------------------------------------------------------------------
 // Reconciliation
 // ---------------------------------------------------------------------------
 
