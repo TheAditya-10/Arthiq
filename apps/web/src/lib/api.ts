@@ -243,6 +243,25 @@ export const api = {
     ) => request<TransactionRow>(`/transactions/${id}`, { method: "PATCH", body: input }),
     remove: (id: string) => request<void>(`/transactions/${id}`, { method: "DELETE" }),
   },
+  reconciliation: {
+    list: (accountId?: string) =>
+      request<ReconciliationRow[]>("/reconciliation", { query: { accountId } }),
+    run: (input: {
+      accountId: string;
+      periodStart: string;
+      periodEnd: string;
+      actualClosingBalance: number;
+    }) =>
+      request<ReconciliationRow & { candidateCauses: string[] }>("/reconciliation/run", {
+        method: "POST",
+        body: input,
+      }),
+    resolve: (id: string, resolutionNotes?: string) =>
+      request<ReconciliationRow>(`/reconciliation/${id}`, {
+        method: "PATCH",
+        body: { status: "RESOLVED", resolutionNotes },
+      }),
+  },
   analytics: {
     summary: (month: string, excludeEventIds: string[] = []) =>
       request<MonthlySummary>("/analytics/summary", {
@@ -283,4 +302,17 @@ export interface TrendPoint {
   date: string;
   expense: number;
   income: number;
+}
+
+export interface ReconciliationRow {
+  id: string;
+  accountId: string;
+  periodStart: string;
+  periodEnd: string;
+  openingBalance: number;
+  expectedClosingBalance: number;
+  actualClosingBalance: number;
+  difference: number;
+  status: "PENDING" | "MATCHED" | "DISCREPANCY" | "RESOLVED";
+  resolutionNotes: string | null;
 }

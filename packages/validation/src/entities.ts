@@ -261,6 +261,34 @@ export type CreateCashExpenseInput = z.infer<typeof createCashExpenseSchema>;
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
+// Reconciliation
+// ---------------------------------------------------------------------------
+
+export const runReconciliationSchema = z
+  .object({
+    accountId: z.string().uuid(),
+    periodStart: isoDate,
+    periodEnd: isoDate,
+    actualClosingBalance: z.number().finite(),
+  })
+  .refine((data) => data.periodStart < data.periodEnd, {
+    message: "periodStart must be before periodEnd",
+    path: ["periodEnd"],
+  });
+export type RunReconciliationInput = z.infer<typeof runReconciliationSchema>;
+
+export const updateReconciliationSchema = z.object({
+  resolutionNotes: z.string().trim().max(2000).optional(),
+  status: z.literal("RESOLVED").optional(),
+});
+export type UpdateReconciliationInput = z.infer<typeof updateReconciliationSchema>;
+
+export const listReconciliationsQuerySchema = z.object({
+  accountId: z.string().uuid().optional(),
+});
+export type ListReconciliationsQuery = z.infer<typeof listReconciliationsQuerySchema>;
+
+// ---------------------------------------------------------------------------
 // Analytics
 // ---------------------------------------------------------------------------
 
