@@ -40,6 +40,16 @@ function RootNavigator() {
       <Stack.Screen name="login" redirect={!!user} />
       <Stack.Screen name="register" redirect={!!user} />
       <Stack.Screen name="(tabs)" redirect={!user} />
+      <Stack.Screen
+        name="transaction/[id]"
+        redirect={!user}
+        options={{ headerShown: true, title: "Edit Transaction", presentation: "modal" }}
+      />
+      <Stack.Screen
+        name="person/[id]"
+        redirect={!user}
+        options={{ headerShown: true, title: "Person" }}
+      />
     </Stack>
   );
 }

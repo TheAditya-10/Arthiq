@@ -44,6 +44,25 @@ export interface Person {
   archivedAt: string | null;
 }
 
+export interface PersonWithBalance extends Person {
+  receivable: number;
+  payable: number;
+  outstanding: number;
+}
+
+export interface Bucket {
+  id: string;
+  name: string;
+  archivedAt: string | null;
+}
+
+export interface SubBucket {
+  id: string;
+  bucketId: string;
+  name: string;
+  archivedAt: string | null;
+}
+
 export interface TransactionRow {
   id: string;
   accountId: string;
@@ -109,11 +128,39 @@ export interface ApiClient {
   accounts: {
     list(): Promise<Account[]>;
   };
+  buckets: {
+    list(): Promise<Bucket[]>;
+  };
+  subBuckets: {
+    list(bucketId: string): Promise<SubBucket[]>;
+  };
   people: {
     list(): Promise<Person[]>;
+    get(id: string): Promise<PersonWithBalance>;
+    create(input: { name: string; notes?: string }): Promise<Person>;
+    addLedgerEntry(input: {
+      personId: string;
+      entryType: "LENT" | "BORROWED" | "REPAYMENT_RECEIVED" | "REPAYMENT_MADE";
+      accountId: string;
+      amount: number;
+      occurredAt: string;
+      notes?: string;
+    }): Promise<TransactionRow>;
   };
   transactions: {
     list(query: Record<string, string | number | undefined>): Promise<TransactionListResult>;
+    get(id: string): Promise<TransactionRow>;
+    create(input: {
+      accountId: string;
+      type: string;
+      amount: number;
+      direction: "DEBIT" | "CREDIT";
+      occurredAt: string;
+      description?: string;
+      merchantRaw?: string;
+      bucketId?: string;
+      subBucketId?: string;
+    }): Promise<TransactionRow>;
     update(
       id: string,
       input: Partial<{ bucketId: string; subBucketId: string; description: string }>,
@@ -226,11 +273,23 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     accounts: {
       list: () => request<Account[]>("/accounts"),
     },
+    buckets: {
+      list: () => request<Bucket[]>("/buckets"),
+    },
+    subBuckets: {
+      list: (bucketId) => request<SubBucket[]>("/sub-buckets", { query: { bucketId } }),
+    },
     people: {
       list: () => request<Person[]>("/people"),
+      get: (id) => request<PersonWithBalance>(`/people/${id}`),
+      create: (input) => request<Person>("/people", { method: "POST", body: input }),
+      addLedgerEntry: (input) =>
+        request<TransactionRow>("/people-ledger", { method: "POST", body: input }),
     },
     transactions: {
       list: (query) => request<TransactionListResult>("/transactions", { query }),
+      get: (id) => request<TransactionRow>(`/transactions/${id}`),
+      create: (input) => request<TransactionRow>("/transactions", { method: "POST", body: input }),
       update: (id, input) =>
         request<TransactionRow>(`/transactions/${id}`, { method: "PATCH", body: input }),
     },
