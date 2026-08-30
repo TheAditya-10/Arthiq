@@ -12,6 +12,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@arthiq/types": "workspace:*",
     "zod": "^3.24.1"
   },
   "devDependencies": {

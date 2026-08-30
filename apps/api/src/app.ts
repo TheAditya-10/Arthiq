@@ -8,6 +8,12 @@ import { prisma as defaultPrisma, type PrismaClient } from "@arthiq/database";
 
 import { healthRoutes } from "./routes/health.js";
 import { authRoutes } from "./routes/auth.js";
+import { accountRoutes } from "./routes/accounts.js";
+import { categoryRoutes } from "./routes/categories.js";
+import { merchantRuleRoutes } from "./routes/merchantRules.js";
+import { eventRoutes } from "./routes/events.js";
+import { peopleRoutes } from "./routes/people.js";
+import { transactionRoutes } from "./routes/transactions.js";
 import authPlugin from "./plugins/auth.js";
 
 export interface BuildAppOptions {
@@ -84,19 +90,26 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     });
   }
 
-  app.setErrorHandler((error: FastifyError, _request, reply) => {
+  app.setErrorHandler((error: FastifyError & { details?: unknown }, _request, reply) => {
     const statusCode = error.statusCode ?? 500;
     app.log.error({ err: error }, "request failed");
     reply.status(statusCode).send({
       error: {
         code: error.code ?? "INTERNAL",
         message: statusCode >= 500 ? "Internal server error" : error.message,
+        ...(error.details !== undefined ? { details: error.details } : {}),
       },
     });
   });
 
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  await app.register(accountRoutes);
+  await app.register(categoryRoutes);
+  await app.register(merchantRuleRoutes);
+  await app.register(eventRoutes);
+  await app.register(peopleRoutes);
+  await app.register(transactionRoutes);
 
   return app;
 }
