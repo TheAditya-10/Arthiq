@@ -27,12 +27,14 @@ Local development instead uses Docker Compose (`docker-compose.yml` at repo root
 ## 3. API (`apps/api`)
 
 ### Option A — Vercel (serverless)
+
 1. `vercel link` inside `apps/api` as its own Vercel project.
-2. Environment variables: `DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (or a single secret if using one signing key — documented in `.env.example`), `AI_PROVIDER_API_KEY` (optional), `CORS_ALLOWED_ORIGIN` (the web app's URL).
-3. The Vercel-specific entrypoint (`apps/api/adapters/vercel.ts`, per ADR-007) is the only file aware it's running on Vercel; everything else is portable.
+2. Environment variables: `DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`, `AI_PROVIDER_API_KEY` (optional), `CORS_ALLOWED_ORIGINS` (comma-separated list including the web app's URL) — see `.env.example` for the full list, including optional ones (`LOG_LEVEL`, `AI_CONFIDENCE_THRESHOLD`). There is no `JWT_REFRESH_SECRET` — refresh tokens are opaque random bytes, not JWTs (docs/SECURITY.md §3).
+3. The Vercel-specific entrypoint (`apps/api/src/adapters/vercel.ts`, per ADR-007) is the only file aware it's running on Vercel; everything else is portable. `apps/api/api/index.ts` re-exports it so Vercel's file-based function routing picks it up, and `apps/api/vercel.json` rewrites every path to that one function.
 4. Deploy: `vercel --prod`.
 
 ### Option B — Container (Railway / Render / Fly.io / any Docker host)
+
 1. `apps/api` includes a `Dockerfile` (multi-stage: install → build → slim runtime image running `node dist/server.js`, the long-running-process entrypoint from ADR-007).
 2. Set the same environment variables as above via the host's dashboard/CLI.
 3. Point a reverse proxy/load balancer at the container for TLS termination if the host doesn't provide it automatically (Railway/Render/Fly all do).
@@ -41,17 +43,19 @@ Local development instead uses Docker Compose (`docker-compose.yml` at repo root
 Both options run the exact same `buildApp()` Fastify instance — see `docs/ARCHITECTURE.md` §3 "adapters/".
 
 ## 4. Mobile — Not Deployed to an App Store in V1
+
 The Android app is built and installed locally (APK/AAB via Gradle, sideloaded or installed via `adb`) rather than published to the Play Store for V1 — see `docs/ANDROID_SETUP.md` and `docs/MOTOROLA_SETUP.md`. It points at the deployed API via a build-time config value (`API_URL` in `apps/mobile/.env` / `app.json` extra config), so switching between a local dev API and the production Vercel/container API is a config change, not a code change.
 
 ## 5. Environments
 
-| Env | Web | API | DB |
-|---|---|---|---|
-| development | `next dev` on localhost | `apps/api` via `pnpm dev` (ts-node/tsx watch) | Docker Compose Postgres |
-| test | not applicable (Playwright drives `next start` against a test build when running E2E) | same binary, `NODE_ENV=test` | separate Docker Postgres database/schema, migrated fresh per CI run |
-| production | Vercel | Vercel or container (Option A/B above) | managed Postgres (Neon/Supabase/etc.) |
+| Env         | Web                                                                                   | API                                           | DB                                                                  |
+| ----------- | ------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------- |
+| development | `next dev` on localhost                                                               | `apps/api` via `pnpm dev` (ts-node/tsx watch) | Docker Compose Postgres                                             |
+| test        | not applicable (Playwright drives `next start` against a test build when running E2E) | same binary, `NODE_ENV=test`                  | separate Docker Postgres database/schema, migrated fresh per CI run |
+| production  | Vercel                                                                                | Vercel or container (Option A/B above)        | managed Postgres (Neon/Supabase/etc.)                               |
 
 ## 6. Rollback
+
 - Web: Vercel keeps every deployment; "Promote" a previous deployment from the dashboard/CLI (`vercel rollback`) if a release regresses.
 - API: same, on Vercel; on a container host, redeploy the previous image tag.
 - Database: Prisma migrations are additive-first by convention in this project (avoid destructive migrations without a documented backfill plan) — see `docs/DEVELOPMENT_GUIDE.md` for the migration workflow.
