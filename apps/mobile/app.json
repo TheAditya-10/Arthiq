@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Arthiq",
+    "name": "Arth-IQ",
     "slug": "arthiq",
     "scheme": "arthiq",
     "version": "0.1.0",
@@ -9,16 +9,41 @@
     "platforms": ["android"],
     "android": {
       "package": "dev.arthiq.app",
-      "permissions": ["INTERNET", "POST_NOTIFICATIONS"]
+      "permissions": ["INTERNET", "POST_NOTIFICATIONS"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B3D38"
+      }
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-notifications",
-      "./plugins/withNotificationListener"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#14776B"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.25"
+          }
+        }
+      ],
+      "./plugins/withNotificationListener.js"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B3D38"
     }
   }
 }
