@@ -103,18 +103,34 @@ Full rationale for every choice: `docs/ADR/`.
 
 ## Quick Start
 
+**Prerequisites:** Node.js ≥20, [pnpm](https://pnpm.io) (`corepack enable` picks up the pinned `11.24.0` automatically), and Docker (for local Postgres — a native Postgres 16 install works too, see `.env.example`).
+
 ```bash
 git clone git@github.com:TheAditya-10/Arthiq.git
 cd Arthiq
+cp .env.example .env      # local defaults already match docker-compose.yml — no edits needed
 pnpm install
-cp .env.example .env
-docker compose up -d db
-pnpm db:migrate
-pnpm db:seed
+pnpm db:generate           # generates the Prisma Client — required before build/dev/test
+docker compose up -d db    # starts local Postgres on :5432
+pnpm db:migrate             # applies the schema
+pnpm db:seed                 # optional: demo data + a ready-to-use login
 pnpm dev
 ```
 
+This starts:
+
+- **Web dashboard** — http://localhost:3000
+- **API** — http://localhost:4000 (health check: http://localhost:4000/health)
+
+Sign in at http://localhost:3000/login with the seeded demo account (**demo@arthiq.dev** / **password123**), or skip `pnpm db:seed` and create your own account at `/register`.
+
+> First time only: `pnpm dev` builds `packages/*` before starting the dev servers, so the very first run takes a bit longer. If you add or change anything in `packages/database`, `packages/types`, `packages/validation`, or `packages/classification` while `pnpm dev` is already running, re-run `pnpm build` (or restart `pnpm dev`) to pick up the change — the dev servers don't currently watch across package boundaries.
+
 Full walkthrough, including Android setup: `docs/DEVELOPMENT_GUIDE.md`.
+
+### Deploying your own instance
+
+The web dashboard deploys to Vercel, and the API is deployable to Vercel (serverless) or any container host with zero code changes. Full steps, including database provisioning: `docs/DEPLOYMENT.md`.
 
 ## Testing
 

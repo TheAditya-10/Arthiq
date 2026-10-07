@@ -38,9 +38,15 @@ export class AnthropicAIClassifier implements AIClassifier {
       "Respond with ONLY the category number, nothing else.",
     ].join("\n");
 
-    let response: Response;
+    // Typed narrowly and cast rather than annotated as the ambient `Response`
+    // type: in this monorepo apps/mobile's react-native types globally
+    // redeclare `Response`, which Vercel's per-function bundler for apps/api
+    // resolves differently than a plain `tsc` run does, breaking the ambient
+    // type in that context. Depending only on `fetch`'s actual resolved
+    // shape here sidesteps that entirely.
+    let response: { ok: boolean; json: () => Promise<unknown> };
     try {
-      response = await fetch("https://api.anthropic.com/v1/messages", {
+      response = (await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -52,7 +58,7 @@ export class AnthropicAIClassifier implements AIClassifier {
           max_tokens: 8,
           messages: [{ role: "user", content: prompt }],
         }),
-      });
+      })) as unknown as { ok: boolean; json: () => Promise<unknown> };
     } catch {
       return null; // network failure — abstain, never block classification on an outage
     }
