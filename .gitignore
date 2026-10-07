@@ -41,3 +41,7 @@ apps/web/test-results/
 apps/web/playwright-report/
 apps/web/blob-report/
 .vercel
+
+# Built Android APKs (large binaries; share via a release/Drive, not git)
+releases/
+*.apk
