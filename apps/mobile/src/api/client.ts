@@ -165,6 +165,17 @@ export interface ApiClient {
       id: string,
       input: Partial<{ bucketId: string; subBucketId: string; description: string }>,
     ): Promise<TransactionRow>;
+    /** One payment made for a group: your share becomes an expense, each person's share a receivable. */
+    split(input: {
+      accountId: string;
+      amount: number;
+      occurredAt: string;
+      description?: string;
+      merchantRaw?: string;
+      bucketId?: string;
+      subBucketId?: string;
+      shares: { personId: string; amount: number }[];
+    }): Promise<{ expense: TransactionRow | null; lent: TransactionRow[] }>;
   };
 }
 
@@ -292,6 +303,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       create: (input) => request<TransactionRow>("/transactions", { method: "POST", body: input }),
       update: (id, input) =>
         request<TransactionRow>(`/transactions/${id}`, { method: "PATCH", body: input }),
+      split: (input) =>
+        request<{ expense: TransactionRow | null; lent: TransactionRow[] }>("/transactions/split", {
+          method: "POST",
+          body: input,
+        }),
     },
   };
 }

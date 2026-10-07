@@ -257,6 +257,54 @@ export const createCashExpenseSchema = z.object({
 });
 export type CreateCashExpenseInput = z.infer<typeof createCashExpenseSchema>;
 
+/**
+ * A payment made on behalf of a group: `amount` is the full amount that left
+ * the account, `shares` is what each other person owes back. The remainder
+ * (amount − Σshares) is the payer's own expense; 0 is allowed when the payer
+ * covered everyone else entirely.
+ */
+export const createSplitExpenseSchema = z
+  .object({
+    accountId: z.string().uuid(),
+    amount: amountSchema,
+    occurredAt: isoDateTime,
+    merchantRaw: z.string().trim().max(200).optional(),
+    description: z.string().trim().max(500).optional(),
+    bucketId: z.string().uuid().optional(),
+    subBucketId: z.string().uuid().optional(),
+    eventId: z.string().uuid().optional(),
+    shares: z
+      .array(z.object({ personId: z.string().uuid(), amount: amountSchema }))
+      .min(1)
+      .max(50),
+  })
+  .superRefine((data, ctx) => {
+    if (data.subBucketId && !data.bucketId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "subBucketId requires bucketId",
+        path: ["bucketId"],
+      });
+    }
+    const personIds = data.shares.map((s) => s.personId);
+    if (new Set(personIds).size !== personIds.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Each person can appear only once in shares",
+        path: ["shares"],
+      });
+    }
+    const sharesMinor = data.shares.reduce((sum, s) => sum + Math.round(s.amount * 100), 0);
+    if (sharesMinor > Math.round(data.amount * 100)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Shares add up to more than the payment amount",
+        path: ["shares"],
+      });
+    }
+  });
+export type CreateSplitExpenseInput = z.infer<typeof createSplitExpenseSchema>;
+
 // ---------------------------------------------------------------------------
 // People Ledger
 // ---------------------------------------------------------------------------

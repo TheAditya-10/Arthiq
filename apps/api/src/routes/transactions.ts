@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import {
   createCashExpenseSchema,
+  createSplitExpenseSchema,
   createTransactionSchema,
   listTransactionsQuerySchema,
   updateTransactionSchema,
@@ -8,6 +9,7 @@ import {
 
 import {
   addCashExpense,
+  addSplitExpense,
   addTransaction,
   editTransaction,
   getTransactions,
@@ -47,6 +49,16 @@ export async function transactionRoutes(app: FastifyInstance): Promise<void> {
     const transaction = await addCashExpense(app.prisma, request.userId!, input);
     reply.status(201);
     return presentAmounts(transaction, ["amountMinor"]);
+  });
+
+  app.post("/transactions/split", async (request, reply) => {
+    const input = parseOrThrow(createSplitExpenseSchema, request.body);
+    const { expense, lent } = await addSplitExpense(app.prisma, request.userId!, input);
+    reply.status(201);
+    return {
+      expense: expense ? presentAmounts(expense, ["amountMinor"]) : null,
+      lent: lent.map((t) => presentAmounts(t, ["amountMinor"])),
+    };
   });
 
   app.get("/transactions/:id", async (request) => {

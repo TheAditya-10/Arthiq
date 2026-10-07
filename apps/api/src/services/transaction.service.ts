@@ -12,6 +12,7 @@ import {
 import { classifyTransaction } from "@arthiq/classification";
 import type {
   CreateCashExpenseInput,
+  CreateSplitExpenseInput,
   CreateTransactionInput,
   ListTransactionsQuery,
   UpdateTransactionInput,
@@ -245,6 +246,123 @@ export async function addCashExpense(
     bucketId: input.bucketId,
     subBucketId: input.subBucketId,
     eventId: input.eventId,
+  });
+}
+
+export interface SplitExpenseResult {
+  /** The payer's own share; null when the payer covered everyone else entirely. */
+  expense: Transaction | null;
+  /** One LENT transaction (and ledger entry) per person who owes a share back. */
+  lent: Transaction[];
+}
+
+/**
+ * Records one payment made on behalf of a group as the payer's own EXPENSE
+ * (amount − Σshares) plus one LENT per other person, all in a single database
+ * transaction so a partial split can never be left behind. The account is
+ * debited by the full amount; each friend's share shows up as a receivable that
+ * the normal repayment flow (POST /people-ledger, REPAYMENT_RECEIVED) settles.
+ */
+export async function addSplitExpense(
+  prisma: PrismaClient,
+  userId: string,
+  input: CreateSplitExpenseInput,
+): Promise<SplitExpenseResult> {
+  await validateReferences(prisma, userId, input);
+  for (const share of input.shares) await requirePerson(prisma, userId, share.personId);
+
+  const totalMinor = toMinorUnits(input.amount);
+  const shareMinors = input.shares.map((s) => toMinorUnits(s.amount));
+  const ownMinor = totalMinor - shareMinors.reduce((sum, m) => sum + m, 0n);
+  const occurredAt = new Date(input.occurredAt);
+  const merchantId = await resolveMerchantId(prisma, userId, input.merchantRaw);
+  const normalizedMerchant = input.merchantRaw ? normalizeMerchant(input.merchantRaw) : undefined;
+
+  const classification =
+    ownMinor > 0n
+      ? await resolveClassification(prisma, userId, {
+          type: "EXPENSE",
+          bucketId: input.bucketId,
+          subBucketId: input.subBucketId,
+          merchantRaw: input.merchantRaw,
+          amountMinor: ownMinor,
+          direction: "DEBIT",
+        })
+      : null;
+
+  return prisma.$transaction(async (tx) => {
+    const expense =
+      ownMinor > 0n && classification
+        ? await createTransaction(tx, {
+            userId,
+            accountId: input.accountId,
+            type: "EXPENSE",
+            amountMinor: ownMinor,
+            direction: "DEBIT",
+            occurredAt,
+            merchantId,
+            merchantRaw: input.merchantRaw,
+            description: input.description,
+            bucketId: classification.bucketId,
+            subBucketId: classification.subBucketId,
+            eventId: input.eventId,
+            source: "MANUAL",
+            classificationSource: classification.source,
+            classificationConfidence: classification.confidence,
+            classifiedAt: classification.classifiedAt,
+            classifiedBy: classification.classifiedBy,
+            status: "CONFIRMED",
+            dedupHash: computeDedupHash({
+              userId,
+              accountId: input.accountId,
+              type: "EXPENSE",
+              amountMinor: ownMinor,
+              occurredAt,
+              normalizedMerchant,
+            }),
+          })
+        : null;
+
+    const lent: Transaction[] = [];
+    for (const [i, share] of input.shares.entries()) {
+      const amountMinor = shareMinors[i]!;
+      const created = await createTransaction(tx, {
+        userId,
+        accountId: input.accountId,
+        type: "LENT",
+        amountMinor,
+        direction: "DEBIT",
+        occurredAt,
+        merchantRaw: input.merchantRaw,
+        description: input.description,
+        eventId: input.eventId,
+        personId: share.personId,
+        source: "MANUAL",
+        classificationSource: "UNKNOWN",
+        status: "CONFIRMED",
+        dedupHash: computeDedupHash({
+          userId,
+          accountId: input.accountId,
+          type: "LENT",
+          amountMinor,
+          occurredAt,
+          normalizedMerchant: `${normalizedMerchant ?? ""}|${share.personId}`,
+        }),
+      });
+      await tx.peopleLedgerEntry.create({
+        data: {
+          userId,
+          personId: share.personId,
+          transactionId: created.id,
+          entryType: "LENT",
+          amountMinor,
+          occurredAt,
+          notes: input.description,
+        },
+      });
+      lent.push(created);
+    }
+    return { expense, lent };
   });
 }
 
