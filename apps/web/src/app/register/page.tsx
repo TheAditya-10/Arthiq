@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/feedback";
 import { Input, Label } from "@/components/ui/input";
 import { ApiClientError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -71,11 +72,7 @@ export default function RegisterPage() {
           />
           <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
         </div>
-        {error && (
-          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        )}
+        {error && <Alert>{error}</Alert>}
         <Button type="submit" className="w-full" disabled={submitting}>
           {submitting ? "Creating account..." : "Create account"}
         </Button>

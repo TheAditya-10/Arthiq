@@ -15,6 +15,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Logo } from "@/components/ui/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/lib/auth-context";
 
 const NAV_ITEMS = [
@@ -51,16 +52,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="bg-brand-800 text-brand-100 md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto">
+      <aside className="bg-brand-800 text-onbrand-100 md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4 md:py-6">
           <Logo size={34} light />
-          <button
-            onClick={signOut}
-            aria-label="Sign out"
-            className="rounded-lg p-2 text-brand-200 hover:bg-white/10 hover:text-white md:hidden"
-          >
-            <LogOut size={18} />
-          </button>
+          <div className="flex items-center md:hidden">
+            <ThemeToggle className="text-onbrand-200 hover:bg-white/10 hover:text-white" />
+            <button
+              onClick={signOut}
+              aria-label="Sign out"
+              className="rounded-lg p-2 text-onbrand-200 hover:bg-white/10 hover:text-white"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:overflow-visible md:pb-4">
           {NAV_ITEMS.map((item) => {
@@ -74,7 +78,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 className={`flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
                   active
                     ? "bg-white/12 text-white shadow-[inset_3px_0_0_#F2A81D]"
-                    : "text-brand-200 hover:bg-white/8 hover:text-white"
+                    : "text-onbrand-200 hover:bg-white/8 hover:text-white"
                 }`}
               >
                 <Icon size={18} className={active ? "text-accent" : ""} />
@@ -90,13 +94,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">{user.displayName}</p>
-              <p className="truncate text-xs text-brand-200">{user.email}</p>
+              <p className="truncate text-xs text-onbrand-200">{user.email}</p>
             </div>
+            <ThemeToggle className="text-onbrand-200 hover:bg-white/10 hover:text-white" />
             <button
               onClick={signOut}
               aria-label="Sign out"
               title="Sign out"
-              className="rounded-lg p-2 text-brand-200 hover:bg-white/10 hover:text-white"
+              className="rounded-lg p-2 text-onbrand-200 hover:bg-white/10 hover:text-white"
             >
               <LogOut size={17} />
             </button>

@@ -1,7 +1,7 @@
 export function Card({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`rounded-2xl border border-slate-200/80 bg-white shadow-card ${className}`}
+      className={`rounded-2xl border border-slate-200/80 bg-surface shadow-card ${className}`}
       {...props}
     />
   );

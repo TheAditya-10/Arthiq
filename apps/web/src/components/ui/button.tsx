@@ -5,9 +5,9 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
 const VARIANT_CLASSES: Record<Variant, string> = {
   primary: "bg-brand-500 text-white shadow-sm hover:bg-brand-600 disabled:bg-brand-200",
   secondary:
-    "bg-white text-slate-900 border border-slate-300 shadow-sm hover:bg-slate-50 hover:border-slate-400",
+    "bg-surface text-slate-900 border border-slate-300 shadow-sm hover:bg-slate-50 hover:border-slate-400",
   ghost: "bg-transparent text-slate-700 hover:bg-slate-100",
-  danger: "bg-red-600 text-white shadow-sm hover:bg-red-700",
+  danger: "bg-[#D6453D] text-white shadow-sm hover:bg-[#B93830]",
 };
 
 export const Button = forwardRef<

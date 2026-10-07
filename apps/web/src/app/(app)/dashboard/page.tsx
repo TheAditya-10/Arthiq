@@ -17,7 +17,9 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Loading } from "@/components/ui/feedback";
 import { Input } from "@/components/ui/input";
+import { useTheme } from "@/lib/theme";
 import {
   type BucketTotal,
   type EventItem,
@@ -30,12 +32,27 @@ import {
 const SLICE_COLORS = ["#14776B", "#F2A81D", "#2F80C9", "#D6453D", "#7C5CBF", "#5B8C2A"];
 const OTHER_COLOR = "#8A9A95";
 const MAX_NAMED_SLICES = SLICE_COLORS.length;
-const GRID_STROKE = "#E8EEEC";
-const TOOLTIP_STYLE = {
-  borderRadius: 12,
-  border: "1px solid #DDE5E2",
-  boxShadow: "0 8px 24px -8px rgba(11,61,56,0.2)",
-  fontSize: 13,
+const CHART_THEMES = {
+  light: {
+    grid: "#E8EEEC",
+    tick: "#5A6B66",
+    surface: "#FFFFFF",
+    text: "#0E1B19",
+    border: "#DDE5E2",
+    bar: "#14776B",
+    expense: "#D6453D",
+    income: "#138A5E",
+  },
+  dark: {
+    grid: "#223632",
+    tick: "#9DB3AD",
+    surface: "#121F1C",
+    text: "#EAF2F0",
+    border: "#223632",
+    bar: "#2BB5A0",
+    expense: "#FF7A70",
+    income: "#3DD39A",
+  },
 };
 
 function StatTitle({
@@ -83,6 +100,17 @@ function ChangeBadge({ percent }: { percent: number | null }) {
 }
 
 export default function DashboardPage() {
+  const { resolved } = useTheme();
+  const chart = CHART_THEMES[resolved];
+  const tooltipStyle = {
+    borderRadius: 12,
+    border: `1px solid ${chart.border}`,
+    backgroundColor: chart.surface,
+    color: chart.text,
+    boxShadow: "0 8px 24px -8px rgba(0,0,0,0.25)",
+    fontSize: 13,
+  };
+  const tickStyle = { fill: chart.tick };
   const [month, setMonth] = useState(currentMonth());
   const [events, setEvents] = useState<EventItem[]>([]);
   const [excludedEventIds, setExcludedEventIds] = useState<string[]>([]);
@@ -166,7 +194,7 @@ export default function DashboardPage() {
       </div>
 
       {events.length > 0 && (
-        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-card">
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-surface px-4 py-2.5 text-sm shadow-card">
           <span className="font-medium text-slate-600">Exclude events:</span>
           {events.map((ev) => (
             <label key={ev.id} className="flex items-center gap-1.5">
@@ -182,7 +210,7 @@ export default function DashboardPage() {
       )}
 
       {loading || !summary ? (
-        <p className="text-sm text-slate-500">Loading your numbers...</p>
+        <Loading label="Loading your numbers..." />
       ) : (
         <>
           <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -277,18 +305,26 @@ export default function DashboardPage() {
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={bucketChartData} layout="vertical" margin={{ left: 20 }}>
-                      <CartesianGrid
-                        stroke={GRID_STROKE}
-                        strokeDasharray="3 3"
-                        horizontal={false}
+                      <CartesianGrid stroke={chart.grid} strokeDasharray="3 3" horizontal={false} />
+                      <XAxis
+                        type="number"
+                        tickFormatter={(v) => formatINR(v)}
+                        fontSize={12}
+                        tick={tickStyle}
                       />
-                      <XAxis type="number" tickFormatter={(v) => formatINR(v)} fontSize={12} />
-                      <YAxis type="category" dataKey="name" width={90} fontSize={12} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={90}
+                        fontSize={12}
+                        tick={tickStyle}
+                      />
                       <Tooltip
-                        contentStyle={TOOLTIP_STYLE}
+                        contentStyle={tooltipStyle}
+                        itemStyle={{ color: chart.text }}
                         formatter={(v: number) => formatINR(v)}
                       />
-                      <Bar dataKey="total" fill="#14776B" radius={[0, 6, 6, 0]} />
+                      <Bar dataKey="total" fill={chart.bar} radius={[0, 6, 6, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -313,12 +349,13 @@ export default function DashboardPage() {
                             nameKey="name"
                             innerRadius={66}
                             outerRadius={104}
-                            stroke="#ffffff"
+                            stroke={chart.surface}
                             strokeWidth={2}
                             isAnimationActive={false}
                           />
                           <Tooltip
-                            contentStyle={TOOLTIP_STYLE}
+                            contentStyle={tooltipStyle}
+                            itemStyle={{ color: chart.text }}
                             formatter={(v: number, name: string) => [
                               `${formatINR(v)} · ${((v / shareData.grand) * 100).toFixed(1)}%`,
                               name,
@@ -361,18 +398,29 @@ export default function DashboardPage() {
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
                     <LineChart data={trend}>
-                      <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" />
-                      <XAxis dataKey="date" fontSize={11} tickFormatter={(d) => d.slice(8)} />
-                      <YAxis tickFormatter={(v) => formatINR(v)} fontSize={12} width={70} />
+                      <CartesianGrid stroke={chart.grid} strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="date"
+                        fontSize={11}
+                        tick={tickStyle}
+                        tickFormatter={(d) => d.slice(8)}
+                      />
+                      <YAxis
+                        tickFormatter={(v) => formatINR(v)}
+                        fontSize={12}
+                        width={70}
+                        tick={tickStyle}
+                      />
                       <Tooltip
-                        contentStyle={TOOLTIP_STYLE}
+                        contentStyle={tooltipStyle}
+                        itemStyle={{ color: chart.text }}
                         formatter={(v: number) => formatINR(v)}
                       />
-                      <Legend />
+                      <Legend wrapperStyle={{ color: chart.tick }} />
                       <Line
                         type="monotone"
                         dataKey="expense"
-                        stroke="#D6453D"
+                        stroke={chart.expense}
                         strokeWidth={2.5}
                         name="Expense"
                         dot={false}
@@ -380,7 +428,7 @@ export default function DashboardPage() {
                       <Line
                         type="monotone"
                         dataKey="income"
-                        stroke="#138A5E"
+                        stroke={chart.income}
                         strokeWidth={2.5}
                         name="Income"
                         dot={false}

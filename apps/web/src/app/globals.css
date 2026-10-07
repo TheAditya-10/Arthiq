@@ -2,6 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design tokens as space-separated RGB channels so Tailwind can apply opacity. */
+:root {
+  color-scheme: light;
+  --surface: 255 255 255;
+  --slate-50: 243 246 245;
+  --slate-100: 232 238 236;
+  --slate-200: 221 229 226;
+  --slate-300: 196 208 204;
+  --slate-400: 138 154 149;
+  --slate-500: 90 107 102;
+  --slate-600: 70 86 79;
+  --slate-700: 52 67 62;
+  --slate-800: 31 45 41;
+  --slate-900: 14 27 25;
+  --brand-50: 230 243 240;
+  --brand-100: 207 233 228;
+  --brand-200: 159 211 202;
+  --brand-500: 20 119 107;
+  --brand-600: 16 106 95;
+  --brand-700: 11 90 80;
+  --emerald-50: 236 253 245;
+  --emerald-100: 209 250 229;
+  --emerald-600: 5 150 105;
+  --emerald-700: 4 120 87;
+  --emerald-800: 6 95 70;
+  --red-50: 254 242 242;
+  --red-100: 254 226 226;
+  --red-500: 239 68 68;
+  --red-600: 220 38 38;
+  --red-700: 185 28 28;
+  --red-800: 153 27 27;
+  --accent-soft: 253 241 214;
+  --accent-ink: 107 71 0;
+  --shadow-card: 0 1px 2px rgba(11, 61, 56, 0.05), 0 4px 16px -6px rgba(11, 61, 56, 0.1);
+}
+
+.dark {
+  color-scheme: dark;
+  --surface: 18 31 28;
+  --slate-50: 10 20 18;
+  --slate-100: 26 42 39;
+  --slate-200: 34 54 50;
+  --slate-300: 46 69 64;
+  --slate-400: 106 127 121;
+  --slate-500: 157 179 173;
+  --slate-600: 181 200 195;
+  --slate-700: 203 218 214;
+  --slate-800: 225 235 232;
+  --slate-900: 234 242 240;
+  --brand-50: 20 51 46;
+  --brand-100: 27 66 59;
+  --brand-200: 42 98 88;
+  --brand-500: 23 133 119;
+  --brand-600: 43 181 160;
+  --brand-700: 95 208 191;
+  --emerald-50: 16 48 42;
+  --emerald-100: 20 64 58;
+  --emerald-600: 61 211 154;
+  --emerald-700: 61 211 154;
+  --emerald-800: 110 231 183;
+  --red-50: 58 29 28;
+  --red-100: 74 36 35;
+  --red-500: 255 122 112;
+  --red-600: 255 122 112;
+  --red-700: 255 154 146;
+  --red-800: 255 180 173;
+  --accent-soft: 58 45 14;
+  --accent-ink: 255 217 138;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px -6px rgba(0, 0, 0, 0.5);
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -12,15 +83,20 @@
       "cv11" 1;
   }
   ::selection {
-    background: #cfe9e4;
+    background: rgb(var(--brand-100));
     color: #0b3d38;
   }
   :focus-visible {
-    outline: 2px solid #14776b;
+    outline: 2px solid rgb(var(--brand-500));
     outline-offset: 2px;
   }
   input[type="checkbox"] {
-    accent-color: #14776b;
+    accent-color: rgb(var(--brand-500));
+  }
+  /* Native pickers and dropdown lists follow the theme. */
+  input,
+  select {
+    color-scheme: inherit;
   }
   table {
     border-collapse: collapse;
@@ -30,5 +106,12 @@
 @layer components {
   .page-title {
     @apply text-2xl font-bold tracking-tight text-slate-900;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
