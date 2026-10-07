@@ -22,20 +22,36 @@ class NotificationListenerModule : Module() {
     @Volatile private var processingEnabled = false
     @Volatile private var allowedPackages: Set<String> = emptySet()
 
+    // Counters surfaced via getStatus() so a "nothing is captured" report can
+    // be narrowed down to: service never connected, notifications seen but
+    // filtered, or forwarded but not handled in JS.
+    @Volatile private var serviceConnected = false
+    @Volatile private var seenCount = 0
+    @Volatile private var forwardedCount = 0
+    @Volatile private var lastSeenPackage = ""
+
+    fun recordSeen(packageName: String) {
+      seenCount += 1
+      lastSeenPackage = packageName
+    }
+
     fun isProcessingEnabled(): Boolean = processingEnabled
 
     fun isPackageAllowed(packageName: String): Boolean = allowedPackages.contains(packageName)
 
     fun onServiceConnected(service: ArthiqNotificationListenerService) {
+      serviceConnected = true
       // No state to capture from the service itself today — connection is
       // tracked here only as a hook for future access-status refinement.
     }
 
     fun onServiceDisconnected(service: ArthiqNotificationListenerService) {
+      serviceConnected = false
       // See onServiceConnected.
     }
 
     fun emitNotificationPosted(packageName: String, title: String, text: String, postTime: Long) {
+      forwardedCount += 1
       moduleRef?.get()?.sendEvent(
         "onNotificationPosted",
         mapOf(
@@ -71,10 +87,12 @@ class NotificationListenerModule : Module() {
     // without revoking OS-level access.
     Function("start") {
       processingEnabled = true
+      Unit
     }
 
     Function("stop") {
       processingEnabled = false
+      Unit
     }
 
     // Mirrors the user's enabled-provider settings (Google Pay/PhonePe/
@@ -82,6 +100,18 @@ class NotificationListenerModule : Module() {
     // disabled providers' notifications before they ever reach JS.
     Function("setEnabledPackages") { packages: List<String> ->
       allowedPackages = packages.toSet()
+      Unit
+    }
+
+    Function("getStatus") {
+      mapOf(
+        "serviceConnected" to serviceConnected,
+        "processingEnabled" to processingEnabled,
+        "allowedPackages" to allowedPackages.joinToString(","),
+        "seenCount" to seenCount,
+        "forwardedCount" to forwardedCount,
+        "lastSeenPackage" to lastSeenPackage,
+      )
     }
 
     Function("getAccessStatus") {
@@ -99,11 +129,12 @@ class NotificationListenerModule : Module() {
     // dialog — this deep-links the user to the system settings screen
     // where they must enable it manually. See docs/ANDROID_SETUP.md.
     Function("openSettings") {
-      val context = appContext.reactContext ?: return@Function
+      val context = appContext.reactContext ?: return@Function Unit
       val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       }
       context.startActivity(intent)
+      Unit
     }
   }
 }

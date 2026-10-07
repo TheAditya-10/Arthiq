@@ -1,7 +1,7 @@
 import { NotificationProviderKey } from "@arthiq/types";
 import type { KeyValueStorage } from "./dedupCache.js";
 import type { AccountResolver } from "./pipeline.js";
-import { GooglePayParser, PaytmParser, PhonePeParser } from "./providers/index.js";
+import { BankSmsParser, GooglePayParser, PaytmParser, PhonePeParser } from "./providers/index.js";
 
 const STORAGE_KEY = "arthiq.notificationSettings.v1";
 
@@ -59,7 +59,8 @@ export function resolveEnabledPackages(settings: NotificationSettings): string[]
     packages.push(...PaytmParser.packageNames);
   }
   if (settings.accountByProvider[NotificationProviderKey.GENERIC_UPI]) {
-    packages.push(...settings.genericPackages);
+    // GENERIC_UPI doubles as the "Bank SMS alerts" mapping in the UI.
+    packages.push(...BankSmsParser.packageNames, ...settings.genericPackages);
   }
   return packages;
 }

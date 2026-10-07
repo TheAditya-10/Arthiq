@@ -2,9 +2,10 @@ import type { NotificationProvider, ParsedTransaction, RawNotification } from ".
 import { GooglePayParser } from "./googlePayParser.js";
 import { PhonePeParser } from "./phonePeParser.js";
 import { PaytmParser } from "./paytmParser.js";
+import { BankSmsParser } from "./bankSmsParser.js";
 import { GenericUPIParser } from "./genericUpiParser.js";
 
-export { GooglePayParser, PhonePeParser, PaytmParser, GenericUPIParser };
+export { GooglePayParser, PhonePeParser, PaytmParser, GenericUPIParser, BankSmsParser };
 
 /** Named-provider parsers, matched by exact package name. GenericUPIParser is tried separately, only for packages the user has explicitly enabled but that don't match one of these. */
 export const NAMED_PROVIDERS: NotificationProvider[] = [
@@ -25,6 +26,7 @@ export function resolveNotificationProvider(
 ): NotificationProvider | null {
   const namedProvider = NAMED_PROVIDERS.find((p) => p.packageNames.includes(packageName));
   if (namedProvider) return namedProvider;
+  if (BankSmsParser.packageNames.includes(packageName)) return BankSmsParser;
   return options.genericUpiEnabled ? GenericUPIParser : null;
 }
 

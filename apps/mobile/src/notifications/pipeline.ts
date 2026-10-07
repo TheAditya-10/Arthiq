@@ -2,6 +2,7 @@ import type {
   NotificationProviderKey,
   ParsedTransaction as WireParsedTransaction,
 } from "@arthiq/types";
+import { recordDiagnostic } from "./diagnostics.js";
 import { computeLocalDedupHash, DedupCache, type KeyValueStorage } from "./dedupCache.js";
 import type { IngestSendResult } from "./ingestClient.js";
 import { resolveNotificationProvider } from "./providers/index.js";
@@ -104,16 +105,25 @@ export class NotificationPipeline {
     if (!provider) return null;
 
     const parsed = provider.parse(notification);
-    if (!parsed) return null;
+    if (!parsed) {
+      recordDiagnostic(notification, "no-parser-match");
+      return null;
+    }
 
     const localHash = computeLocalDedupHash(notification.packageName, parsed);
-    if (await this.dedupCache.has(localHash)) return null;
+    if (await this.dedupCache.has(localHash)) {
+      recordDiagnostic(notification, "duplicate");
+      return null;
+    }
 
     const accountId = this.options.resolveAccountId({
       provider: provider.key,
       sourcePackage: notification.packageName,
     });
-    if (!accountId) return null;
+    if (!accountId) {
+      recordDiagnostic(notification, "no-account-mapped");
+      return null;
+    }
 
     await this.dedupCache.add(localHash);
 
@@ -126,6 +136,7 @@ export class NotificationPipeline {
     });
 
     const result = await this.options.sendRich(payload);
+    recordDiagnostic(notification, result.ok ? "sent" : "queued-send-failed");
     if (result.ok) {
       this.options.onIngested?.(result);
       return { sent: 1, remaining: await this.syncQueue.size() };

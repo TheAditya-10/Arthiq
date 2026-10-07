@@ -22,6 +22,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "expo-modules-autolinking": "2.0.8",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.0",
     "prettier": "^3.4.2",

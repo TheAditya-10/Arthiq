@@ -70,5 +70,44 @@ export function tryPatterns(
     };
   }
 
-  return null;
+  return looseParse(notification, combined);
+}
+
+const LOOSE_AMOUNT = new RegExp(AMOUNT, "i");
+const LOOSE_DEBIT = /\b(?:paid|sent|debited|transferred|spent|payment\s+of)\b/i;
+const LOOSE_CREDIT = /\b(?:received|credited)\b/i;
+// Payment requests, promos and failed/pending states mention amounts too but
+// are not completed transactions.
+const LOOSE_REJECT =
+  /\b(?:request(?:s|ed)?|reminder|cashback|offer|reward|win|failed|declined|unsuccessful|pending|refund(?:ed)?)\b/i;
+
+/**
+ * Wording-tolerant fallback for when none of a provider's exact patterns
+ * match (real notification text varies by app version and transaction type
+ * far more than any hand-written pattern list). Requires an explicit amount
+ * plus an unambiguous completed-payment verb, and rejects requests/promos.
+ */
+function looseParse(notification: RawNotification, combined: string): ParsedTransaction | null {
+  if (LOOSE_REJECT.test(combined)) return null;
+  const amountMatch = LOOSE_AMOUNT.exec(combined);
+  if (!amountMatch?.groups?.amount) return null;
+
+  const debitAt = combined.search(LOOSE_DEBIT);
+  const creditAt = combined.search(LOOSE_CREDIT);
+  if (debitAt < 0 && creditAt < 0) return null;
+  const isCredit = creditAt >= 0 && (debitAt < 0 || creditAt < debitAt);
+
+  const merchantMatch = new RegExp(
+    `\\b${isCredit ? "from" : "(?:to|at)"}\\s+${MERCHANT}${TERMINATOR}`,
+    "i",
+  ).exec(combined);
+  const referenceMatch = REFERENCE_PATTERN.exec(combined);
+
+  return {
+    amountMinor: parseAmountString(amountMatch.groups.amount),
+    direction: isCredit ? "CREDIT" : "DEBIT",
+    merchantRaw: merchantMatch?.groups?.merchant?.trim() || undefined,
+    occurredAt: new Date(notification.postTime),
+    referenceId: referenceMatch?.[1],
+  };
 }

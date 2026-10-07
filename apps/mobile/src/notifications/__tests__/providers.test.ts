@@ -174,3 +174,31 @@ describe("parseNotification (provider dispatch)", () => {
     expect(result).toBeNull();
   });
 });
+
+describe("loose fallback parsing (wording the exact patterns don't cover)", () => {
+  const paytm = (title: string, text: string) =>
+    PaytmParser.parse(raw("net.one97.paytm", title, text));
+
+  it("parses amount-first wording", () => {
+    const result = paytm("Payment Successful", "₹250 paid to Swiggy via UPI");
+    expect(result?.amountMinor).toBe(25000n);
+    expect(result?.direction).toBe("DEBIT");
+    expect(result?.merchantRaw).toBe("Swiggy");
+  });
+
+  it("parses a credit with the amount before the verb", () => {
+    const result = paytm("Paytm", "Rs 1,200.50 received from Rahul Sharma");
+    expect(result?.amountMinor).toBe(120050n);
+    expect(result?.direction).toBe("CREDIT");
+  });
+
+  it("rejects payment requests, promos and failures", () => {
+    expect(paytm("Paytm", "Rahul requested ₹500 from you")).toBeNull();
+    expect(paytm("Paytm", "Get ₹100 cashback when you paid your bill")).toBeNull();
+    expect(paytm("Paytm", "Payment of ₹300 failed")).toBeNull();
+  });
+
+  it("rejects text with no amount", () => {
+    expect(paytm("Paytm", "You paid a visit to your wallet")).toBeNull();
+  });
+});

@@ -28,12 +28,21 @@ class ArthiqNotificationListenerService : NotificationListenerService() {
   }
 
   override fun onNotificationPosted(sbn: StatusBarNotification) {
+    NotificationListenerModule.recordSeen(sbn.packageName)
     if (!NotificationListenerModule.isProcessingEnabled()) return
     if (!NotificationListenerModule.isPackageAllowed(sbn.packageName)) return
 
     val extras = sbn.notification.extras
-    val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: return
-    val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: return
+    // Payment apps often put the detail in EXTRA_BIG_TEXT (expanded style)
+    // and leave EXTRA_TEXT empty, so fall back through the variants rather
+    // than dropping the notification.
+    val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
+    val text = (
+      extras.getCharSequence(Notification.EXTRA_BIG_TEXT)
+        ?: extras.getCharSequence(Notification.EXTRA_TEXT)
+        ?: extras.getCharSequence(Notification.EXTRA_SUB_TEXT)
+    )?.toString().orEmpty()
+    if (title.isEmpty() && text.isEmpty()) return
 
     NotificationListenerModule.emitNotificationPosted(
       packageName = sbn.packageName,

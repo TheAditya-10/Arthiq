@@ -1,3 +1,4 @@
+import { BankSmsParser } from "../providers/bankSmsParser.js";
 import { NotificationProviderKey } from "@arthiq/types";
 import { describe, expect, it } from "vitest";
 import {
@@ -51,7 +52,9 @@ describe("notification settings", () => {
       accountByProvider: { [NotificationProviderKey.GENERIC_UPI]: "acc-1" },
       genericPackages: ["com.somebank.app"],
     });
-    expect(withAccount).toEqual(["com.somebank.app"]);
+    // GENERIC_UPI is also the "Bank SMS alerts" mapping, so it enables the
+    // messaging-app packages alongside any user-added generic ones.
+    expect(withAccount).toEqual([...BankSmsParser.packageNames, "com.somebank.app"]);
   });
 
   it("accountResolverFromSettings returns the mapped account or null", () => {

@@ -130,9 +130,11 @@ export interface ApiClient {
   };
   buckets: {
     list(): Promise<Bucket[]>;
+    create(input: { name: string }): Promise<Bucket>;
   };
   subBuckets: {
     list(bucketId: string): Promise<SubBucket[]>;
+    create(input: { bucketId: string; name: string }): Promise<SubBucket>;
   };
   people: {
     list(): Promise<Person[]>;
@@ -165,6 +167,8 @@ export interface ApiClient {
       id: string,
       input: Partial<{ bucketId: string; subBucketId: string; description: string }>,
     ): Promise<TransactionRow>;
+    /** Voids the transaction (it stops counting toward balances and analytics). */
+    remove(id: string): Promise<void>;
     /** One payment made for a group: your share becomes an expense, each person's share a receivable. */
     split(input: {
       accountId: string;
@@ -286,9 +290,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     buckets: {
       list: () => request<Bucket[]>("/buckets"),
+      create: (input) => request<Bucket>("/buckets", { method: "POST", body: input }),
     },
     subBuckets: {
       list: (bucketId) => request<SubBucket[]>("/sub-buckets", { query: { bucketId } }),
+      create: (input) => request<SubBucket>("/sub-buckets", { method: "POST", body: input }),
     },
     people: {
       list: () => request<Person[]>("/people"),
@@ -303,6 +309,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       create: (input) => request<TransactionRow>("/transactions", { method: "POST", body: input }),
       update: (id, input) =>
         request<TransactionRow>(`/transactions/${id}`, { method: "PATCH", body: input }),
+      remove: (id) => request<void>(`/transactions/${id}`, { method: "DELETE" }),
       split: (input) =>
         request<{ expense: TransactionRow | null; lent: TransactionRow[] }>("/transactions/split", {
           method: "POST",

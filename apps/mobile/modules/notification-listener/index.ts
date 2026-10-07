@@ -19,7 +19,17 @@ declare class NativeNotificationListenerModule extends NativeModule<Notification
   stop(): void;
   setEnabledPackages(packages: string[]): void;
   getAccessStatus(): AccessStatus;
+  getStatus(): ListenerStatus;
   openSettings(): void;
+}
+
+export interface ListenerStatus {
+  serviceConnected: boolean;
+  processingEnabled: boolean;
+  allowedPackages: string;
+  seenCount: number;
+  forwardedCount: number;
+  lastSeenPackage: string;
 }
 
 // Android-only native module. On any other platform (including the Metro
@@ -48,6 +58,11 @@ export function setEnabledPackages(packages: string[]): void {
 /** Whether the user has granted this app the special "Notification access" permission. */
 export function getAccessStatus(): AccessStatus {
   return nativeModule.getAccessStatus();
+}
+
+/** Native-side counters for diagnosing why nothing is captured. */
+export function getListenerStatus(): ListenerStatus {
+  return nativeModule.getStatus();
 }
 
 /** Deep-links to Settings > Notifications > Notification access, since this grant has no runtime permission dialog. */
