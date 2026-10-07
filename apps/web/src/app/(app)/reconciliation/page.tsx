@@ -84,7 +84,7 @@ export default function ReconciliationPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold tracking-tight">Reconciliation</h1>
+      <h1 className="mb-4 page-title">Reconciliation</h1>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
@@ -174,7 +174,7 @@ export default function ReconciliationPage() {
                 </dl>
                 {result.candidateCauses.length > 0 && (
                   <div className="mt-4">
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <p className="mb-1 text-xs font-semibold tracking-wide text-slate-500">
                       Possible causes
                     </p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
@@ -197,7 +197,7 @@ export default function ReconciliationPage() {
                 </p>
               ) : (
                 <table className="w-full text-sm">
-                  <thead className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <thead className="border-b border-slate-200 text-left text-xs font-semibold tracking-wide text-slate-500">
                     <tr>
                       <th className="px-4 py-2">Period</th>
                       <th className="px-4 py-2 text-right">Difference</th>
@@ -207,7 +207,10 @@ export default function ReconciliationPage() {
                   </thead>
                   <tbody>
                     {history.map((r) => (
-                      <tr key={r.id} className="border-b border-slate-100 last:border-0">
+                      <tr
+                        key={r.id}
+                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
+                      >
                         <td className="px-4 py-2 text-slate-600">
                           {r.periodStart.slice(0, 10)} → {r.periodEnd.slice(0, 10)}
                         </td>

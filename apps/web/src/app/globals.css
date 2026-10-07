@@ -1,3 +1,34 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    font-feature-settings:
+      "tnum" 1,
+      "cv11" 1;
+  }
+  ::selection {
+    background: #cfe9e4;
+    color: #0b3d38;
+  }
+  :focus-visible {
+    outline: 2px solid #14776b;
+    outline-offset: 2px;
+  }
+  input[type="checkbox"] {
+    accent-color: #14776b;
+  }
+  table {
+    border-collapse: collapse;
+  }
+}
+
+@layer components {
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-slate-900;
+  }
+}

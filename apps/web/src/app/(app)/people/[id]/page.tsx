@@ -106,7 +106,7 @@ export default function PersonDetailPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">{person.name}</h1>
+      <h1 className="mb-1 page-title">{person.name}</h1>
       <p className="mb-6 text-sm text-slate-600">
         {person.outstanding === 0
           ? "Settled up"
@@ -192,7 +192,7 @@ export default function PersonDetailPage() {
               <p className="p-4 text-sm text-slate-500">No entries yet.</p>
             ) : (
               <table className="w-full text-sm">
-                <thead className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-slate-200 text-left text-xs font-semibold tracking-wide text-slate-500">
                   <tr>
                     <th className="px-4 py-2">Date</th>
                     <th className="px-4 py-2">Type</th>
@@ -202,7 +202,10 @@ export default function PersonDetailPage() {
                 </thead>
                 <tbody>
                   {ledger.map((entry) => (
-                    <tr key={entry.id} className="border-b border-slate-100 last:border-0">
+                    <tr
+                      key={entry.id}
+                      className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
+                    >
                       <td className="px-4 py-2 text-slate-600">{formatDate(entry.occurredAt)}</td>
                       <td className="px-4 py-2">
                         <Badge tone={ENTRY_TYPE_TONE[entry.entryType]}>

@@ -59,7 +59,7 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold tracking-tight">Categories</h1>
+      <h1 className="mb-4 page-title">Categories</h1>
 
       <form onSubmit={handleAddBucket} className="mb-6 flex max-w-sm gap-2">
         <Input

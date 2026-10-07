@@ -75,7 +75,7 @@ export default function AccountsPage() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Accounts</h1>
+        <h1 className="page-title">Accounts</h1>
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input
             type="checkbox"

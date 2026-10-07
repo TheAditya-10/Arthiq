@@ -48,7 +48,7 @@ export default function PeoplePage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold tracking-tight">People</h1>
+      <h1 className="mb-4 page-title">People</h1>
 
       <form onSubmit={handleAddPerson} className="mb-6 flex max-w-sm gap-2">
         <Input

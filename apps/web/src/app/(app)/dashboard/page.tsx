@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowDownLeft, ArrowUpRight, Sparkles, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
@@ -26,9 +27,35 @@ import {
 } from "@/lib/api";
 
 // Validated categorical palette (dataviz skill, light surface), used in fixed order.
-const SLICE_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"];
-const OTHER_COLOR = "#94a3b8";
+const SLICE_COLORS = ["#14776B", "#F2A81D", "#2F80C9", "#D6453D", "#7C5CBF", "#5B8C2A"];
+const OTHER_COLOR = "#8A9A95";
 const MAX_NAMED_SLICES = SLICE_COLORS.length;
+const GRID_STROKE = "#E8EEEC";
+const TOOLTIP_STYLE = {
+  borderRadius: 12,
+  border: "1px solid #DDE5E2",
+  boxShadow: "0 8px 24px -8px rgba(11,61,56,0.2)",
+  fontSize: 13,
+};
+
+function StatTitle({
+  icon: Icon,
+  tint,
+  children,
+}: {
+  icon: typeof Wallet;
+  tint: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${tint}`}>
+        <Icon size={16} />
+      </span>
+      <div>{children}</div>
+    </div>
+  );
+}
 
 function currentMonth(): string {
   const now = new Date();
@@ -125,18 +152,21 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-500">Your money this month, at a glance.</p>
+        </div>
         <Input
           type="month"
           value={month}
           onChange={(e) => setMonth(e.target.value)}
-          className="w-auto"
+          className="!w-auto"
         />
       </div>
 
       {events.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-card">
           <span className="font-medium text-slate-600">Exclude events:</span>
           {events.map((ev) => (
             <label key={ev.id} className="flex items-center gap-1.5">
@@ -152,16 +182,21 @@ export default function DashboardPage() {
       )}
 
       {loading || !summary ? (
-        <p className="text-sm text-slate-500">Loading...</p>
+        <p className="text-sm text-slate-500">Loading your numbers...</p>
       ) : (
         <>
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
             <Card>
-              <CardHeader className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Total Spending{excludedEventIds.length > 0 ? " (adjusted)" : ""}
+              <CardHeader className="text-sm font-semibold text-slate-600">
+                <StatTitle icon={ArrowUpRight} tint="bg-red-50 text-red-600">
+                  Total Spending{excludedEventIds.length > 0 ? " (adjusted)" : ""}
+                </StatTitle>
               </CardHeader>
               <CardBody>
-                <p data-testid="total-spending" className="text-2xl font-semibold">
+                <p
+                  data-testid="total-spending"
+                  className="text-3xl font-extrabold tracking-tight tabular-nums"
+                >
                   {formatINR(summary.adjusted.expense)}
                 </p>
                 {excludedEventIds.length > 0 && (
@@ -187,22 +222,26 @@ export default function DashboardPage() {
               </CardBody>
             </Card>
             <Card>
-              <CardHeader className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Total Income
+              <CardHeader className="text-sm font-semibold text-slate-600">
+                <StatTitle icon={ArrowDownLeft} tint="bg-emerald-50 text-emerald-600">
+                  Total Income
+                </StatTitle>
               </CardHeader>
               <CardBody>
-                <p className="text-2xl font-semibold text-emerald-700">
+                <p className="text-3xl font-extrabold tracking-tight tabular-nums text-emerald-700">
                   {formatINR(summary.adjusted.income)}
                 </p>
               </CardBody>
             </Card>
             <Card>
-              <CardHeader className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Net Cash Flow
+              <CardHeader className="text-sm font-semibold text-slate-600">
+                <StatTitle icon={Wallet} tint="bg-brand-50 text-brand-600">
+                  Net Cash Flow
+                </StatTitle>
               </CardHeader>
               <CardBody>
                 <p
-                  className={`text-2xl font-semibold ${summary.adjusted.netCashFlow >= 0 ? "text-emerald-700" : "text-red-600"}`}
+                  className={`text-3xl font-extrabold tracking-tight tabular-nums ${summary.adjusted.netCashFlow >= 0 ? "text-emerald-700" : "text-red-600"}`}
                 >
                   {formatINR(summary.adjusted.netCashFlow)}
                 </p>
@@ -211,10 +250,14 @@ export default function DashboardPage() {
           </div>
 
           {insights.length > 0 && (
-            <Card className="mb-6">
-              <CardHeader className="text-sm font-medium">Insights</CardHeader>
+            <Card className="mb-6 border-accent/30 bg-accent-soft/60">
+              <CardHeader className="border-accent/20 text-sm font-semibold text-accent-ink">
+                <span className="flex items-center gap-2">
+                  <Sparkles size={16} /> Insights
+                </span>
+              </CardHeader>
               <CardBody>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+                <ul className="list-disc space-y-1.5 pl-5 text-sm text-slate-800 marker:text-accent">
                   {insights.map((insight, i) => (
                     <li key={i}>{insight}</li>
                   ))}
@@ -223,20 +266,29 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Card>
-              <CardHeader className="text-sm font-medium">Spending by bucket</CardHeader>
+              <CardHeader className="text-sm font-semibold text-slate-800">
+                Spending by bucket
+              </CardHeader>
               <CardBody>
                 {bucketChartData.length === 0 ? (
                   <p className="text-sm text-slate-500">No categorized spending this month.</p>
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={bucketChartData} layout="vertical" margin={{ left: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <CartesianGrid
+                        stroke={GRID_STROKE}
+                        strokeDasharray="3 3"
+                        horizontal={false}
+                      />
                       <XAxis type="number" tickFormatter={(v) => formatINR(v)} fontSize={12} />
                       <YAxis type="category" dataKey="name" width={90} fontSize={12} />
-                      <Tooltip formatter={(v: number) => formatINR(v)} />
-                      <Bar dataKey="total" fill="#0f172a" radius={[0, 4, 4, 0]} />
+                      <Tooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        formatter={(v: number) => formatINR(v)}
+                      />
+                      <Bar dataKey="total" fill="#14776B" radius={[0, 6, 6, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -244,7 +296,9 @@ export default function DashboardPage() {
             </Card>
 
             <Card>
-              <CardHeader className="text-sm font-medium">Where the money went</CardHeader>
+              <CardHeader className="text-sm font-semibold text-slate-800">
+                Where the money went
+              </CardHeader>
               <CardBody>
                 {shareData.slices.length === 0 ? (
                   <p className="text-sm text-slate-500">No categorized spending this month.</p>
@@ -264,6 +318,7 @@ export default function DashboardPage() {
                             isAnimationActive={false}
                           />
                           <Tooltip
+                            contentStyle={TOOLTIP_STYLE}
                             formatter={(v: number, name: string) => [
                               `${formatINR(v)} · ${((v / shareData.grand) * 100).toFixed(1)}%`,
                               name,
@@ -299,29 +354,34 @@ export default function DashboardPage() {
             </Card>
 
             <Card className="lg:col-span-2">
-              <CardHeader className="text-sm font-medium">Daily trend</CardHeader>
+              <CardHeader className="text-sm font-semibold text-slate-800">Daily trend</CardHeader>
               <CardBody>
                 {trend.length === 0 ? (
                   <p className="text-sm text-slate-500">No transactions this month.</p>
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
                     <LineChart data={trend}>
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" />
                       <XAxis dataKey="date" fontSize={11} tickFormatter={(d) => d.slice(8)} />
                       <YAxis tickFormatter={(v) => formatINR(v)} fontSize={12} width={70} />
-                      <Tooltip formatter={(v: number) => formatINR(v)} />
+                      <Tooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        formatter={(v: number) => formatINR(v)}
+                      />
                       <Legend />
                       <Line
                         type="monotone"
                         dataKey="expense"
-                        stroke="#dc2626"
+                        stroke="#D6453D"
+                        strokeWidth={2.5}
                         name="Expense"
                         dot={false}
                       />
                       <Line
                         type="monotone"
                         dataKey="income"
-                        stroke="#059669"
+                        stroke="#138A5E"
+                        strokeWidth={2.5}
                         name="Income"
                         dot={false}
                       />

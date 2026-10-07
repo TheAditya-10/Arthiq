@@ -49,7 +49,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-lg space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="page-title">Settings</h1>
 
       <Card>
         <CardHeader className="text-sm font-medium">Profile</CardHeader>

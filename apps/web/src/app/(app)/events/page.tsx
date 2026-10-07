@@ -65,7 +65,7 @@ export default function EventsPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold tracking-tight">Events</h1>
+      <h1 className="mb-4 page-title">Events</h1>
 
       <Card className="mb-6 max-w-lg">
         <CardBody>

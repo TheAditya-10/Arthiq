@@ -76,7 +76,7 @@ export default function ImportPage() {
   if (result) {
     return (
       <div>
-        <h1 className="mb-4 text-2xl font-semibold tracking-tight">Import complete</h1>
+        <h1 className="mb-4 page-title">Import complete</h1>
         <Card className="max-w-md">
           <CardBody className="space-y-2 text-sm">
             <p>
@@ -107,7 +107,7 @@ export default function ImportPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold tracking-tight">Import bank statement (CSV)</h1>
+      <h1 className="mb-4 page-title">Import bank statement (CSV)</h1>
 
       {!preview ? (
         <Card className="max-w-md">
@@ -188,7 +188,7 @@ export default function ImportPage() {
             </CardHeader>
             <CardBody className="overflow-x-auto p-0">
               <table className="w-full text-sm">
-                <thead className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-slate-200 text-left text-xs font-semibold tracking-wide text-slate-500">
                   <tr>
                     {preview.headers.map((h, i) => (
                       <th key={i} className="whitespace-nowrap px-3 py-2">
@@ -199,7 +199,10 @@ export default function ImportPage() {
                 </thead>
                 <tbody>
                   {preview.previewRows.map((row, i) => (
-                    <tr key={i} className="border-b border-slate-100 last:border-0">
+                    <tr
+                      key={i}
+                      className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
+                    >
                       {row.map((cell, j) => (
                         <td key={j} className="whitespace-nowrap px-3 py-2 text-slate-600">
                           {cell}

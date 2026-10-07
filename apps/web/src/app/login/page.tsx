@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AuthShell } from "@/components/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { ApiClientError } from "@/lib/api";
@@ -33,49 +34,45 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <h1 className="mb-1 text-2xl font-semibold tracking-tight">Arthiq</h1>
-        <p className="mb-6 text-sm text-slate-600">Sign in to your account</p>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          {error && (
-            <p role="alert" className="text-sm text-red-600">
-              {error}
-            </p>
-          )}
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Signing in..." : "Sign in"}
-          </Button>
-        </form>
-        <p className="mt-4 text-sm text-slate-600">
-          No account?{" "}
-          <Link href="/register" className="font-medium text-slate-900 underline">
-            Create one
-          </Link>
-        </p>
-      </div>
-    </main>
+    <AuthShell title="Welcome back" subtitle="Sign in to your Arth-IQ account">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        {error && (
+          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+        <Button type="submit" className="w-full" disabled={submitting}>
+          {submitting ? "Signing in..." : "Sign in"}
+        </Button>
+      </form>
+      <p className="mt-4 text-sm text-slate-600">
+        No account?{" "}
+        <Link href="/register" className="font-semibold text-brand-600 hover:underline">
+          Create one
+        </Link>
+      </p>
+    </AuthShell>
   );
 }
