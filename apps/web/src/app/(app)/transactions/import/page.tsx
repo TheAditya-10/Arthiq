@@ -1,5 +1,7 @@
 "use client";
 
+import { Alert } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -76,7 +78,7 @@ export default function ImportPage() {
   if (result) {
     return (
       <div>
-        <h1 className="mb-4 page-title">Import complete</h1>
+        <PageHeader title="Import complete" description="Here is what happened with your file." />
         <Card className="max-w-md">
           <CardBody className="space-y-2 text-sm">
             <p>
@@ -97,7 +99,7 @@ export default function ImportPage() {
         </Card>
         <Link
           href="/transactions"
-          className="mt-4 inline-block text-sm font-medium text-slate-900 underline"
+          className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-600 hover:underline"
         >
           Go to Transactions
         </Link>
@@ -107,11 +109,14 @@ export default function ImportPage() {
 
   return (
     <div>
-      <h1 className="mb-4 page-title">Import bank statement (CSV)</h1>
+      <PageHeader
+        title="Import bank statement (CSV)"
+        description="Upload a CSV from your bank, check the columns, then import."
+      />
 
       {!preview ? (
         <Card className="max-w-md">
-          <CardHeader className="text-sm font-medium">1. Choose file</CardHeader>
+          <CardHeader className="text-sm font-bold text-slate-900">1. Choose file</CardHeader>
           <CardBody>
             <form onSubmit={handlePreview} className="space-y-3">
               <div>
@@ -136,10 +141,10 @@ export default function ImportPage() {
                   type="file"
                   accept=".csv,text/csv"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                  className="block w-full text-sm"
+                  className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-brand-700 hover:file:bg-brand-100"
                 />
               </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <Alert>{error}</Alert>}
               <Button type="submit" disabled={loading}>
                 {loading ? "Reading file..." : "Preview"}
               </Button>
@@ -149,7 +154,9 @@ export default function ImportPage() {
       ) : (
         <div className="space-y-6">
           <Card>
-            <CardHeader className="text-sm font-medium">2. Confirm column mapping</CardHeader>
+            <CardHeader className="text-sm font-bold text-slate-900">
+              2. Confirm column mapping
+            </CardHeader>
             <CardBody>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {FIELD_LABELS.map(({ key, label, required }) => (
@@ -183,7 +190,7 @@ export default function ImportPage() {
           </Card>
 
           <Card>
-            <CardHeader className="text-sm font-medium">
+            <CardHeader className="text-sm font-bold text-slate-900">
               3. Preview ({preview.totalRows} row{preview.totalRows === 1 ? "" : "s"} total)
             </CardHeader>
             <CardBody className="overflow-x-auto p-0">
@@ -215,7 +222,7 @@ export default function ImportPage() {
             </CardBody>
           </Card>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <Alert>{error}</Alert>}
           <div className="flex gap-2">
             <Button onClick={handleCommit} disabled={loading}>
               {loading ? "Importing..." : `Import ${preview.totalRows} transactions`}

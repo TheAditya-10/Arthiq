@@ -1,11 +1,24 @@
 "use client";
 
+import { ArrowDownLeft, ArrowUpRight, Loader2, ReceiptText, Upload, Wallet } from "lucide-react";
+import { Alert, Stat } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
-import { type Bucket, type EventItem, type SubBucket, type TransactionRow, api } from "@/lib/api";
+import { TransactionEditDialog } from "@/components/transaction-edit-dialog";
+import {
+  type Account,
+  type Bucket,
+  type EventItem,
+  type Person,
+  type SubBucket,
+  type TransactionRow,
+  type TransactionSummary,
+  api,
+} from "@/lib/api";
 
 const TRANSACTION_TYPES = [
   "EXPENSE",
@@ -34,6 +47,14 @@ function formatINR(amount: number): string {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
 }
 
+const GROUP_OPTIONS = [
+  { value: "none", label: "No grouping" },
+  { value: "bucket", label: "By category" },
+  { value: "month", label: "By month" },
+  { value: "event", label: "By event" },
+  { value: "type", label: "By type" },
+];
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -61,15 +82,30 @@ export default function TransactionsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [summary, setSummary] = useState<TransactionSummary | null>(null);
+  const [groupBy, setGroupBy] = useState("none");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [editingTxn, setEditingTxn] = useState<TransactionRow | null>(null);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([api.buckets.list(), api.subBuckets.list(), api.events.list()])
-      .then(([b, sb, e]) => {
+    Promise.all([
+      api.buckets.list(),
+      api.subBuckets.list(),
+      api.events.list(),
+      api.accounts.list(),
+      api.people.list(),
+    ])
+      .then(([b, sb, e, a, p]) => {
         setBuckets(b);
         setSubBuckets(sb);
         setEvents(e);
+        setAccounts(a);
+        setPeople(p);
       })
       .catch(() => undefined);
   }, []);
@@ -94,7 +130,23 @@ export default function TransactionsPage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load transactions"))
       .finally(() => setLoading(false));
-  }, [page, search, type, bucketId, eventId, from, to]);
+  }, [page, search, type, bucketId, eventId, from, to, refreshKey]);
+
+  // Totals/subtotals cover every row matching the filters, not just this page.
+  useEffect(() => {
+    api.transactions
+      .summary({
+        search: search || undefined,
+        type: type || undefined,
+        bucketId: bucketId || undefined,
+        eventId: eventId || undefined,
+        from: from || undefined,
+        to: to || undefined,
+        groupBy,
+      })
+      .then(setSummary)
+      .catch(() => setSummary(null));
+  }, [search, type, bucketId, eventId, from, to, groupBy, refreshKey]);
 
   const bucketNameById = useMemo(() => new Map(buckets.map((b) => [b.id, b.name])), [buckets]);
   const subBucketNameById = useMemo(
@@ -112,26 +164,57 @@ export default function TransactionsPage() {
     });
     setItems((prev) => prev.map((t) => (t.id === txn.id ? updated : t)));
     setEditingId(null);
+    setRefreshKey((k) => k + 1);
   }
 
   async function handleEventChange(txn: TransactionRow, newEventId: string) {
-    const updated = await api.transactions.update(txn.id, { eventId: newEventId || undefined });
+    const updated = await api.transactions.update(txn.id, { eventId: newEventId || null });
     setItems((prev) => prev.map((t) => (t.id === txn.id ? updated : t)));
     setEditingEventId(null);
+    setRefreshKey((k) => k + 1);
   }
+
+  async function handleDelete(txn: TransactionRow) {
+    const label = txn.merchantRaw ?? txn.description ?? txn.type;
+    if (
+      !window.confirm(
+        `Delete "${label}" (${formatINR(txn.amount)})? This removes it from your totals.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.transactions.remove(txn.id);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the transaction");
+    }
+  }
+
+  const pageIn = items
+    .filter((t) => t.direction === "CREDIT")
+    .reduce((sum, t) => sum + t.amount, 0);
+  const pageOut = items
+    .filter((t) => t.direction === "DEBIT")
+    .reduce((sum, t) => sum + t.amount, 0);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
-        <Link href="/transactions/import">
-          <Button variant="secondary">Import CSV</Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Transactions"
+        description="Every payment in one place. Search, filter and fix categories."
+        actions={
+          <Link href="/transactions/import">
+            <Button variant="secondary">
+              <Upload size={15} /> Import CSV
+            </Button>
+          </Link>
+        }
+      />
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-5 flex flex-wrap gap-2">
         <Input
           placeholder="Search merchant or description..."
           value={search}
@@ -190,7 +273,7 @@ export default function TransactionsPage() {
             setPage(1);
             setFrom(e.target.value);
           }}
-          className="w-auto"
+          className="!w-auto"
         />
         <Input
           type="date"
@@ -199,36 +282,111 @@ export default function TransactionsPage() {
             setPage(1);
             setTo(e.target.value);
           }}
-          className="w-auto"
+          className="!w-auto"
         />
       </div>
 
-      {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+      {error && <Alert className="mb-4">{error}</Alert>}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      {summary && (
+        <div className="mb-5 rounded-2xl border border-slate-200/80 bg-surface p-5 shadow-card">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4" data-testid="transaction-totals">
+            <Stat
+              label="Income"
+              icon={ArrowDownLeft}
+              tone="good"
+              value={formatINR(summary.totals.income)}
+            />
+            <Stat label="Spending" icon={ArrowUpRight} value={formatINR(summary.totals.spending)} />
+            <Stat
+              label="Income − spending"
+              icon={Wallet}
+              tone={summary.totals.income - summary.totals.spending >= 0 ? "good" : "bad"}
+              value={formatINR(summary.totals.income - summary.totals.spending)}
+            />
+            <Stat label="Transactions" value={summary.totals.count} />
+          </div>
+          <p className="mt-3 text-xs text-slate-500">
+            All money in {formatINR(summary.totals.moneyIn)} · all money out{" "}
+            {formatINR(summary.totals.moneyOut)} (includes loans, repayments and transfers). Totals
+            cover everything matching your filters, not only this page.
+          </p>
+
+          <div className="mt-4 flex items-center gap-2">
+            <label htmlFor="group-by" className="text-sm font-medium text-slate-600">
+              Subtotals
+            </label>
+            <Select id="group-by" value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+              {GROUP_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          {groupBy !== "none" && summary.groups.length > 0 && (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[480px] text-sm" data-testid="transaction-subtotals">
+                <thead className="text-left text-xs font-semibold text-slate-500">
+                  <tr>
+                    <th className="py-1 pr-3">Group</th>
+                    <th className="px-3 py-1 text-right">Count</th>
+                    <th className="px-3 py-1 text-right">Income</th>
+                    <th className="px-3 py-1 text-right">Spending</th>
+                    <th className="py-1 pl-3 text-right">Money in / out</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.groups.map((g) => (
+                    <tr key={g.key || "none"} className="border-t border-slate-100">
+                      <td className="py-1.5 pr-3">{g.label}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{g.count}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">
+                        {g.income ? formatINR(g.income) : "—"}
+                      </td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">
+                        {g.spending ? formatINR(g.spending) : "—"}
+                      </td>
+                      <td className="py-1.5 pl-3 text-right tabular-nums text-slate-500">
+                        +{formatINR(g.moneyIn)} / −{formatINR(g.moneyOut)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-surface shadow-card">
         <table className="w-full min-w-[900px] text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold tracking-wide text-slate-500">
             <tr>
-              <th className="px-3 py-2">Date</th>
-              <th className="px-3 py-2">Merchant / Description</th>
-              <th className="px-3 py-2">Type</th>
-              <th className="px-3 py-2 text-right">Amount</th>
-              <th className="px-3 py-2">Category</th>
-              <th className="px-3 py-2">Event</th>
-              <th className="px-3 py-2">Classification</th>
-              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-3">Date</th>
+              <th className="px-3 py-3">Merchant / Description</th>
+              <th className="px-3 py-3">Type</th>
+              <th className="px-3 py-3 text-right">Amount</th>
+              <th className="px-3 py-3">Category</th>
+              <th className="px-3 py-3">Event</th>
+              <th className="px-3 py-3">Classification</th>
+              <th className="px-3 py-3">Status</th>
+              <th className="px-3 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
-                  Loading...
+                <td colSpan={9} className="px-3 py-10 text-center text-slate-500">
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 size={16} className="animate-spin" /> Loading...
+                  </span>
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
+                <td colSpan={9} className="px-3 py-12 text-center text-slate-500">
+                  <ReceiptText size={28} className="mx-auto mb-2 text-slate-400" />
                   No transactions match these filters.
                 </td>
               </tr>
@@ -236,7 +394,7 @@ export default function TransactionsPage() {
               items.map((txn) => (
                 <tr
                   key={txn.id}
-                  className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                  className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
                 >
                   <td className="whitespace-nowrap px-3 py-2 text-slate-600">
                     {formatDate(txn.occurredAt)}
@@ -291,7 +449,9 @@ export default function TransactionsPage() {
                             )}
                           </>
                         ) : (
-                          <span className="italic text-slate-400">Uncategorized</span>
+                          <span className="rounded-md bg-accent-soft px-1.5 py-0.5 text-xs font-semibold text-accent-ink">
+                            Uncategorized
+                          </span>
                         )}
                       </button>
                     )}
@@ -327,12 +487,59 @@ export default function TransactionsPage() {
                     </Badge>
                   </td>
                   <td className="px-3 py-2 text-slate-600">{txn.status}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right">
+                    <Button
+                      variant="ghost"
+                      className="px-2 py-1"
+                      onClick={() => setEditingTxn(txn)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="px-2 py-1 text-red-600 hover:bg-red-50"
+                      onClick={() => handleDelete(txn)}
+                    >
+                      Delete
+                    </Button>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
+          {!loading && items.length > 0 && (
+            <tfoot className="border-t border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">
+              <tr>
+                <td colSpan={3} className="px-3 py-2">
+                  This page ({items.length})
+                </td>
+                <td colSpan={6} className="px-3 py-2 text-left">
+                  <span className="text-emerald-700">+{formatINR(pageIn)}</span>
+                  {" · "}
+                  <span>−{formatINR(pageOut)}</span>
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
+
+      {editingTxn && (
+        <TransactionEditDialog
+          txn={editingTxn}
+          accounts={accounts}
+          buckets={buckets}
+          subBuckets={subBuckets}
+          events={events}
+          people={people}
+          onClose={() => setEditingTxn(null)}
+          onSaved={(updated) => {
+            setItems((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+            setEditingTxn(null);
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
 
       <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
         <span>

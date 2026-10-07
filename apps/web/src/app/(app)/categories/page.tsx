@@ -1,5 +1,8 @@
 "use client";
 
+import { FolderTree } from "lucide-react";
+import { EmptyState, Loading } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/page-header";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
@@ -59,7 +62,10 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <h1 className="mb-4 page-title">Categories</h1>
+      <PageHeader
+        title="Categories"
+        description="Group your spending into buckets and sub-categories."
+      />
 
       <form onSubmit={handleAddBucket} className="mb-6 flex max-w-sm gap-2">
         <Input
@@ -71,19 +77,24 @@ export default function CategoriesPage() {
       </form>
 
       {loading ? (
-        <p className="text-sm text-slate-500">Loading...</p>
+        <Loading />
       ) : buckets.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <EmptyState icon={FolderTree} title="No categories yet">
           No categories yet. Add a bucket above — rule/heuristic classification only matches buckets
           that already exist.
-        </p>
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {buckets.map((bucket) => (
             <Card key={bucket.id}>
               <CardBody>
                 <div className="flex items-center justify-between">
-                  <h2 className="font-medium text-slate-900">{bucket.name}</h2>
+                  <h2 className="flex items-center gap-2 font-bold text-slate-900">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                      <FolderTree size={16} />
+                    </span>
+                    {bucket.name}
+                  </h2>
                   <Button
                     variant="ghost"
                     className="px-0 text-red-600 hover:bg-transparent hover:underline"
@@ -97,7 +108,7 @@ export default function CategoriesPage() {
                   {(subBucketsByBucket[bucket.id] ?? []).map((sub) => (
                     <li
                       key={sub.id}
-                      className="flex items-center justify-between text-sm text-slate-700"
+                      className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
                     >
                       {sub.name}
                       <button

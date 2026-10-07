@@ -1,5 +1,8 @@
 "use client";
 
+import { Scale } from "lucide-react";
+import { Alert, EmptyState } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/page-header";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,11 +87,14 @@ export default function ReconciliationPage() {
 
   return (
     <div>
-      <h1 className="mb-4 page-title">Reconciliation</h1>
+      <PageHeader
+        title="Reconciliation"
+        description="Check your records against your bank statement and find what is missing."
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
-          <CardHeader className="text-sm font-medium">Run a reconciliation</CardHeader>
+          <CardHeader className="text-sm font-bold text-slate-900">Run a reconciliation</CardHeader>
           <CardBody>
             <form onSubmit={handleRun} className="space-y-3">
               <div>
@@ -134,7 +140,7 @@ export default function ReconciliationPage() {
                   onChange={(e) => setActualBalance(e.target.value)}
                 />
               </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <Alert>{error}</Alert>}
               <Button type="submit" className="w-full" disabled={running}>
                 {running ? "Running..." : "Run reconciliation"}
               </Button>
@@ -145,7 +151,7 @@ export default function ReconciliationPage() {
         <div className="space-y-6 lg:col-span-2">
           {result && (
             <Card>
-              <CardHeader className="flex items-center justify-between text-sm font-medium">
+              <CardHeader className="flex items-center justify-between text-sm font-bold text-slate-900">
                 <span>Result</span>
                 <Badge tone={STATUS_TONE[result.status]}>{result.status}</Badge>
               </CardHeader>
@@ -153,20 +159,26 @@ export default function ReconciliationPage() {
                 <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                   <div>
                     <dt className="text-xs text-slate-500">Opening</dt>
-                    <dd className="font-medium">{formatINR(result.openingBalance)}</dd>
+                    <dd className="text-lg font-extrabold tracking-tight tabular-nums">
+                      {formatINR(result.openingBalance)}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-500">Expected</dt>
-                    <dd className="font-medium">{formatINR(result.expectedClosingBalance)}</dd>
+                    <dd className="text-lg font-extrabold tracking-tight tabular-nums">
+                      {formatINR(result.expectedClosingBalance)}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-500">Actual</dt>
-                    <dd className="font-medium">{formatINR(result.actualClosingBalance)}</dd>
+                    <dd className="text-lg font-extrabold tracking-tight tabular-nums">
+                      {formatINR(result.actualClosingBalance)}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-500">Difference</dt>
                     <dd
-                      className={`font-medium ${result.difference !== 0 ? "text-red-600" : "text-emerald-700"}`}
+                      className={`text-lg font-extrabold tracking-tight tabular-nums ${result.difference !== 0 ? "text-red-600" : "text-emerald-700"}`}
                     >
                       {formatINR(result.difference)}
                     </dd>
@@ -189,12 +201,14 @@ export default function ReconciliationPage() {
           )}
 
           <Card>
-            <CardHeader className="text-sm font-medium">History</CardHeader>
+            <CardHeader className="text-sm font-bold text-slate-900">History</CardHeader>
             <CardBody className="p-0">
               {history.length === 0 ? (
-                <p className="p-4 text-sm text-slate-500">
-                  No reconciliations run yet for this account.
-                </p>
+                <div className="p-5">
+                  <EmptyState icon={Scale} title="Nothing reconciled yet">
+                    No reconciliations run yet for this account.
+                  </EmptyState>
+                </div>
               ) : (
                 <table className="w-full text-sm">
                   <thead className="border-b border-slate-200 text-left text-xs font-semibold tracking-wide text-slate-500">
@@ -222,7 +236,7 @@ export default function ReconciliationPage() {
                           {r.status === "DISCREPANCY" && (
                             <button
                               onClick={() => handleResolve(r.id)}
-                              className="text-xs font-medium text-slate-600 underline"
+                              className="text-xs font-semibold text-brand-600 hover:underline"
                             >
                               Mark resolved
                             </button>

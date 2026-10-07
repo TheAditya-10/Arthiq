@@ -1,5 +1,7 @@
 "use client";
 
+import { Alert } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/page-header";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -48,11 +50,11 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-lg space-y-6">
-      <h1 className="page-title">Settings</h1>
+    <div className="max-w-lg space-y-6 [&>div:first-child]:mb-0">
+      <PageHeader title="Settings" description="Your profile and account." />
 
       <Card>
-        <CardHeader className="text-sm font-medium">Profile</CardHeader>
+        <CardHeader className="text-sm font-bold text-slate-900">Profile</CardHeader>
         <CardBody>
           <form onSubmit={handleSaveProfile} className="space-y-3">
             <div>
@@ -67,7 +69,7 @@ export default function SettingsPage() {
               <Label htmlFor="timezone">Timezone</Label>
               <Input id="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} />
             </div>
-            {saved && <p className="text-sm text-emerald-700">Saved.</p>}
+            {saved && <Alert tone="success">Saved.</Alert>}
             <Button type="submit" disabled={saving}>
               {saving ? "Saving..." : "Save profile"}
             </Button>
@@ -75,8 +77,8 @@ export default function SettingsPage() {
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader className="text-sm font-medium text-red-600">Delete account</CardHeader>
+      <Card className="border-red-100">
+        <CardHeader className="text-sm font-bold text-red-600">Delete account</CardHeader>
         <CardBody>
           <p className="mb-3 text-sm text-slate-600">
             Permanently deletes your account and everything in it — accounts, transactions, people,
@@ -89,7 +91,7 @@ export default function SettingsPage() {
             onChange={(e) => setConfirmText(e.target.value)}
             className="mb-3"
           />
-          {deleteError && <p className="mb-3 text-sm text-red-600">{deleteError}</p>}
+          {deleteError && <Alert className="mb-3">{deleteError}</Alert>}
           <Button
             variant="danger"
             disabled={confirmText !== "DELETE" || deleting}

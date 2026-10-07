@@ -1,5 +1,8 @@
 "use client";
 
+import { Landmark } from "lucide-react";
+import { EmptyState, Loading } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/page-header";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,21 +77,24 @@ export default function AccountsPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="page-title">Accounts</h1>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-          />
-          Show archived
-        </label>
-      </div>
+      <PageHeader
+        title="Accounts"
+        description="Bank accounts, cards and cash — where your money lives."
+        actions={
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
+            Show archived
+          </label>
+        }
+      />
 
       <Card className="mb-6 max-w-lg">
         <CardBody>
-          <h2 className="mb-3 text-sm font-medium text-slate-700">Add an account</h2>
+          <h2 className="mb-4 text-base font-bold text-slate-900">Add an account</h2>
           <form onSubmit={handleCreate} className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <Label htmlFor="name">Name</Label>
@@ -138,23 +144,31 @@ export default function AccountsPage() {
       </Card>
 
       {loading ? (
-        <p className="text-sm text-slate-500">Loading...</p>
+        <Loading />
       ) : accounts.length === 0 ? (
-        <p className="text-sm text-slate-500">No accounts yet — add one above to get started.</p>
+        <EmptyState icon={Landmark} title="No accounts yet">
+          No accounts yet — add one above to get started.
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {accounts.map((account) => (
             <Card key={account.id}>
               <CardBody>
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-slate-900">{account.name}</p>
-                  <Badge tone={account.archivedAt ? "neutral" : "info"}>
-                    {account.type.replace("_", " ")}
-                  </Badge>
+                <div className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                    <Landmark size={19} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold text-slate-900">{account.name}</p>
+                    <Badge tone={account.archivedAt ? "neutral" : "info"} className="mt-1">
+                      {account.type.replace("_", " ")}
+                    </Badge>
+                  </div>
                 </div>
-                <p className="mt-2 text-lg font-semibold text-slate-900">
+                <p className="mt-4 text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">
                   {formatINR(balances[account.id] ?? 0)}
                 </p>
+                <p className="text-xs text-slate-500">Current balance</p>
                 {!account.archivedAt ? (
                   <Button
                     variant="ghost"

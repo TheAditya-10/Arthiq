@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { ArrowLeft, BookOpen } from "lucide-react";
+import { Alert, Avatar, EmptyState, Loading, Stat } from "@/components/ui/feedback";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -101,25 +104,46 @@ export default function PersonDetailPage() {
   }
 
   if (loading || !person) {
-    return <p className="text-sm text-slate-500">Loading...</p>;
+    return <Loading />;
   }
 
   return (
     <div>
-      <h1 className="mb-1 page-title">{person.name}</h1>
-      <p className="mb-6 text-sm text-slate-600">
-        {person.outstanding === 0
-          ? "Settled up"
-          : person.outstanding > 0
-            ? `Owes you ${formatINR(person.outstanding)}`
-            : `You owe ${formatINR(-person.outstanding)}`}
-        {" · "}
-        Lent: {formatINR(person.receivable)} · Borrowed: {formatINR(person.payable)}
-      </p>
+      <Link
+        href="/people"
+        className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-900"
+      >
+        <ArrowLeft size={15} /> People
+      </Link>
+      <div className="mb-6 flex flex-wrap items-center gap-4">
+        <Avatar name={person.name} size={56} />
+        <div>
+          <h1 className="page-title">{person.name}</h1>
+          <p
+            className={`mt-0.5 text-sm font-semibold ${
+              person.outstanding > 0
+                ? "text-emerald-700"
+                : person.outstanding < 0
+                  ? "text-red-600"
+                  : "text-slate-500"
+            }`}
+          >
+            {person.outstanding === 0
+              ? "Settled up"
+              : person.outstanding > 0
+                ? `Owes you ${formatINR(person.outstanding)}`
+                : `You owe ${formatINR(-person.outstanding)}`}
+          </p>
+        </div>
+        <div className="ml-auto flex gap-6">
+          <Stat label="Lent" value={formatINR(person.receivable)} />
+          <Stat label="Borrowed" value={formatINR(person.payable)} />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
-          <CardHeader className="text-sm font-medium">
+          <CardHeader className="text-sm font-bold text-slate-900">
             Record lending / borrowing / repayment
           </CardHeader>
           <CardBody>
@@ -177,7 +201,7 @@ export default function PersonDetailPage() {
                 <Label htmlFor="notes">Notes (optional)</Label>
                 <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <Alert>{error}</Alert>}
               <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting ? "Saving..." : "Record"}
               </Button>
@@ -186,10 +210,14 @@ export default function PersonDetailPage() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader className="text-sm font-medium">History</CardHeader>
+          <CardHeader className="text-sm font-bold text-slate-900">History</CardHeader>
           <CardBody className="p-0">
             {ledger.length === 0 ? (
-              <p className="p-4 text-sm text-slate-500">No entries yet.</p>
+              <div className="p-5">
+                <EmptyState icon={BookOpen} title="No entries yet">
+                  Record a loan or repayment to start the ledger.
+                </EmptyState>
+              </div>
             ) : (
               <table className="w-full text-sm">
                 <thead className="border-b border-slate-200 text-left text-xs font-semibold tracking-wide text-slate-500">

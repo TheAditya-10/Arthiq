@@ -1,5 +1,8 @@
 "use client";
 
+import { CalendarDays } from "lucide-react";
+import { EmptyState, Loading } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/page-header";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
@@ -65,11 +68,14 @@ export default function EventsPage() {
 
   return (
     <div>
-      <h1 className="mb-4 page-title">Events</h1>
+      <PageHeader
+        title="Events"
+        description="Trips and occasions you want to see on their own, apart from everyday spending."
+      />
 
       <Card className="mb-6 max-w-lg">
         <CardBody>
-          <h2 className="mb-3 text-sm font-medium text-slate-700">Create an event</h2>
+          <h2 className="mb-4 text-base font-bold text-slate-900">Create an event</h2>
           <form onSubmit={handleCreate} className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <Label htmlFor="name">Name</Label>
@@ -108,11 +114,11 @@ export default function EventsPage() {
       </Card>
 
       {loading ? (
-        <p className="text-sm text-slate-500">Loading...</p>
+        <Loading />
       ) : events.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <EmptyState icon={CalendarDays} title="No events yet">
           No events yet. Create one above, then attach transactions to it from the ledger.
-        </p>
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => {
@@ -121,7 +127,12 @@ export default function EventsPage() {
               <Card key={event.id}>
                 <CardBody>
                   <div className="flex items-center justify-between">
-                    <p className="font-medium text-slate-900">{event.name}</p>
+                    <p className="flex items-center gap-2 font-bold text-slate-900">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent-ink">
+                        <CalendarDays size={16} />
+                      </span>
+                      {event.name}
+                    </p>
                     {!event.archivedAt ? (
                       <button
                         className="text-xs text-red-500 hover:underline"
@@ -136,7 +147,7 @@ export default function EventsPage() {
                       {event.startDate ?? "…"} – {event.endDate ?? "…"}
                     </p>
                   )}
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
+                  <p className="mt-3 text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">
                     {formatINR(summary?.total ?? 0)}
                   </p>
                   <p className="text-xs text-slate-500">
