@@ -12,6 +12,8 @@ export interface IngestClientOptions {
    * refresh works.
    */
   getAccessToken: () => Promise<string | null>;
+  /** Forces a token refresh; called once when the server answers 401 (access tokens are short-lived). */
+  refreshAccessToken?: () => Promise<string | null>;
 }
 
 export interface IngestedTransaction {
@@ -24,6 +26,8 @@ export interface IngestedTransaction {
 
 export interface IngestSendResult {
   ok: boolean;
+  /** Why the send failed — shown in the diagnostics list. Absent when `ok`. */
+  error?: string;
   dedupOutcome?: "NEW" | "DUPLICATE";
   transaction?: IngestedTransaction | null;
 }
@@ -47,29 +51,40 @@ export function createIngestSendFn(options: IngestClientOptions): {
   send: SendFn;
   sendRich: (payload: WireParsedTransaction) => Promise<IngestSendResult>;
 } {
+  const post = (token: string, payload: WireParsedTransaction) =>
+    fetch(`${options.baseUrl}/notifications/ingest`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "X-Client": "mobile",
+      },
+      body: JSON.stringify(payload),
+    });
+
   const sendRich = async (payload: WireParsedTransaction): Promise<IngestSendResult> => {
-    const token = await options.getAccessToken();
-    if (!token) return { ok: false };
+    let token = await options.getAccessToken();
+    if (!token) return { ok: false, error: "not signed in (no access token)" };
 
     try {
-      const response = await fetch(`${options.baseUrl}/notifications/ingest`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "X-Client": "mobile",
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) return { ok: false };
+      let response = await post(token, payload);
+      if (response.status === 401 && options.refreshAccessToken) {
+        token = await options.refreshAccessToken();
+        if (!token) return { ok: false, error: "session expired — sign in again" };
+        response = await post(token, payload);
+      }
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        return { ok: false, error: `HTTP ${response.status} ${detail.slice(0, 160)}`.trim() };
+      }
 
       const body = (await response.json().catch(() => null)) as {
         dedupOutcome?: "NEW" | "DUPLICATE";
         transaction?: IngestedTransaction | null;
       } | null;
       return { ok: true, dedupOutcome: body?.dedupOutcome, transaction: body?.transaction };
-    } catch {
-      return { ok: false };
+    } catch (err) {
+      return { ok: false, error: `network: ${err instanceof Error ? err.message : String(err)}` };
     }
   };
 

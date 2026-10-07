@@ -29,6 +29,7 @@ export function useNotificationPipeline(): void {
     const { sendRich } = createIngestSendFn({
       baseUrl: API_URL,
       getAccessToken: apiClient.ensureAccessToken,
+      refreshAccessToken: apiClient.refreshAccessToken,
     });
 
     const pipeline = new NotificationPipeline({

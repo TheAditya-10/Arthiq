@@ -29,7 +29,7 @@ describe("createIngestSendFn", () => {
       getAccessToken: async () => null,
     });
 
-    expect(await sendRich(payload())).toEqual({ ok: false });
+    expect(await sendRich(payload())).toMatchObject({ ok: false });
     expect(await send(payload())).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -79,7 +79,7 @@ describe("createIngestSendFn", () => {
     });
 
     expect(await send(payload())).toBe(false);
-    expect(await sendRich(payload())).toEqual({ ok: false });
+    expect(await sendRich(payload())).toMatchObject({ ok: false });
   });
 
   it("returns not-ok, without throwing, on a network error", async () => {
@@ -89,6 +89,23 @@ describe("createIngestSendFn", () => {
       getAccessToken: async () => "token123",
     });
 
-    expect(await sendRich(payload())).toEqual({ ok: false });
+    expect(await sendRich(payload())).toMatchObject({ ok: false });
+  });
+
+  it("refreshes the token and retries once when the server answers 401", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, text: async () => "" })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ dedupOutcome: "NEW" }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const { sendRich } = createIngestSendFn({
+      baseUrl: "https://api.arthiq.app",
+      getAccessToken: async () => "stale",
+      refreshAccessToken: async () => "fresh",
+    });
+
+    expect(await sendRich(payload())).toMatchObject({ ok: true, dedupOutcome: "NEW" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[1].headers.Authorization).toBe("Bearer fresh");
   });
 });

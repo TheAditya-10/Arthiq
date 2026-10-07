@@ -9,6 +9,8 @@ export interface DiagnosticEntry {
   title: string;
   text: string;
   outcome: DiagnosticOutcome;
+  /** Failure reason for `queued-send-failed`. */
+  detail?: string;
 }
 
 const MAX_ENTRIES = 15;
@@ -21,7 +23,11 @@ const listeners = new Set<() => void>();
  * see why a payment wasn't captured instead of it vanishing silently; it is
  * cleared when the app process ends.
  */
-export function recordDiagnostic(notification: RawNotification, outcome: DiagnosticOutcome): void {
+export function recordDiagnostic(
+  notification: RawNotification,
+  outcome: DiagnosticOutcome,
+  detail?: string,
+): void {
   entries = [
     {
       at: Date.now(),
@@ -29,6 +35,7 @@ export function recordDiagnostic(notification: RawNotification, outcome: Diagnos
       title: notification.title,
       text: notification.text,
       outcome,
+      detail,
     },
     ...entries,
   ].slice(0, MAX_ENTRIES);

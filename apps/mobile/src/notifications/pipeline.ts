@@ -136,7 +136,7 @@ export class NotificationPipeline {
     });
 
     const result = await this.options.sendRich(payload);
-    recordDiagnostic(notification, result.ok ? "sent" : "queued-send-failed");
+    recordDiagnostic(notification, result.ok ? "sent" : "queued-send-failed", result.error);
     if (result.ok) {
       this.options.onIngested?.(result);
       return { sent: 1, remaining: await this.syncQueue.size() };

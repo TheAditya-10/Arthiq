@@ -175,6 +175,7 @@ export default function SettingsScreen() {
           >
             <Text style={{ fontSize: 12, fontWeight: "700", color: t.text }}>
               {new Date(entry.at).toLocaleTimeString()} · {entry.outcome}
+              {entry.detail ? ` — ${entry.detail}` : ""}
             </Text>
             <Text style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
               {entry.packageName}: {entry.title} | {entry.text}

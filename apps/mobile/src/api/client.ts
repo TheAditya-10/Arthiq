@@ -113,6 +113,8 @@ export interface ApiClient {
    * which does its own bare `fetch` — see `ingestClient.ts`).
    */
   ensureAccessToken(): Promise<string | null>;
+  /** Forces a refresh from the stored refresh token, e.g. after a 401 on a request made outside `request()`. */
+  refreshAccessToken(): Promise<string | null>;
   auth: {
     register(input: { email: string; password: string; displayName: string }): Promise<{
       accessToken: string;
@@ -252,6 +254,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   return {
     ensureAccessToken: async () => tokenStore.getAccessToken() ?? tryRefreshAccessToken(),
+    refreshAccessToken: tryRefreshAccessToken,
     auth: {
       register: async (input) => {
         const result = await request<{
