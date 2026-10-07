@@ -193,6 +193,36 @@ export interface TransactionRow {
   status: string;
 }
 
+/** Fields an edit may change; `null` clears an optional field, omitting leaves it as is. */
+export interface TransactionUpdate {
+  accountId?: string;
+  type?: string;
+  amount?: number;
+  occurredAt?: string;
+  merchantRaw?: string | null;
+  description?: string | null;
+  bucketId?: string | null;
+  subBucketId?: string | null;
+  eventId?: string | null;
+  personId?: string | null;
+}
+
+export interface SummaryTotals {
+  count: number;
+  moneyIn: number;
+  moneyOut: number;
+  income: number;
+  spending: number;
+}
+export interface SummaryGroup extends SummaryTotals {
+  key: string;
+  label: string;
+}
+export interface TransactionSummary {
+  totals: SummaryTotals;
+  groups: SummaryGroup[];
+}
+
 export interface TransactionListResult {
   items: TransactionRow[];
   total: number;
@@ -281,15 +311,10 @@ export const api = {
   transactions: {
     list: (query: Record<string, string | number | undefined>) =>
       request<TransactionListResult>("/transactions", { query }),
-    update: (
-      id: string,
-      input: Partial<{
-        bucketId: string;
-        subBucketId: string;
-        eventId: string;
-        description: string;
-      }>,
-    ) => request<TransactionRow>(`/transactions/${id}`, { method: "PATCH", body: input }),
+    update: (id: string, input: TransactionUpdate) =>
+      request<TransactionRow>(`/transactions/${id}`, { method: "PATCH", body: input }),
+    summary: (query: Record<string, string | undefined>) =>
+      request<TransactionSummary>("/transactions/summary", { query }),
     remove: (id: string) => request<void>(`/transactions/${id}`, { method: "DELETE" }),
   },
   imports: {

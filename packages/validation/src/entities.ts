@@ -223,7 +223,17 @@ export const createTransactionSchema = transactionObjectSchema.superRefine(refin
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 
 export const updateTransactionSchema = z
-  .object({ ...baseTransactionFields, type: baseTransactionFields.type.optional() })
+  .object({
+    ...baseTransactionFields,
+    type: baseTransactionFields.type.optional(),
+    // null clears the field (undefined leaves it unchanged)
+    merchantRaw: baseTransactionFields.merchantRaw.nullable(),
+    description: baseTransactionFields.description.nullable(),
+    bucketId: baseTransactionFields.bucketId.nullable(),
+    subBucketId: baseTransactionFields.subBucketId.nullable(),
+    eventId: baseTransactionFields.eventId.nullable(),
+    personId: baseTransactionFields.personId.nullable(),
+  })
   .partial()
   .refine((data) => Object.keys(data).length > 0, { message: "No fields to update" });
 export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>;
@@ -245,6 +255,12 @@ export const listTransactionsQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(200).default(50),
 });
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
+
+export const TRANSACTION_SUMMARY_GROUPS = ["none", "bucket", "month", "event", "type"] as const;
+export const transactionSummaryQuerySchema = listTransactionsQuerySchema
+  .omit({ page: true, pageSize: true })
+  .extend({ groupBy: z.enum(TRANSACTION_SUMMARY_GROUPS).default("none") });
+export type TransactionSummaryQuery = z.infer<typeof transactionSummaryQuerySchema>;
 
 export const createCashExpenseSchema = z.object({
   accountId: z.string().uuid(),

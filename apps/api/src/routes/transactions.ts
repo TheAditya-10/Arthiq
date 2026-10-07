@@ -4,6 +4,7 @@ import {
   createSplitExpenseSchema,
   createTransactionSchema,
   listTransactionsQuerySchema,
+  transactionSummaryQuerySchema,
   updateTransactionSchema,
 } from "@arthiq/validation";
 
@@ -12,6 +13,7 @@ import {
   addSplitExpense,
   addTransaction,
   editTransaction,
+  getTransactionSummary,
   getTransactions,
   removeTransaction,
   requireTransaction,
@@ -35,6 +37,11 @@ export async function transactionRoutes(app: FastifyInstance): Promise<void> {
       page,
       pageSize,
     };
+  });
+
+  app.get("/transactions/summary", async (request) => {
+    const query = parseOrThrow(transactionSummaryQuerySchema, request.query);
+    return getTransactionSummary(app.prisma, request.userId!, query);
   });
 
   app.post("/transactions", async (request, reply) => {

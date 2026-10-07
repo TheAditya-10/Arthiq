@@ -16,6 +16,8 @@ export interface TransactionFilters {
   status?: string;
   classificationSource?: string;
   search?: string;
+  /** Hide soft-deleted rows (the default for user-facing lists). Ignored when `status` is set. */
+  excludeVoided?: boolean;
 }
 
 function buildWhere(userId: string, filters: TransactionFilters): Prisma.TransactionWhereInput {
@@ -36,7 +38,11 @@ function buildWhere(userId: string, filters: TransactionFilters): Prisma.Transac
     ...(filters.personId ? { personId: filters.personId } : {}),
     ...(filters.type ? { type: filters.type as Transaction["type"] } : {}),
     ...(filters.source ? { source: filters.source as Transaction["source"] } : {}),
-    ...(filters.status ? { status: filters.status as Transaction["status"] } : {}),
+    ...(filters.status
+      ? { status: filters.status as Transaction["status"] }
+      : filters.excludeVoided
+        ? { status: { not: "VOIDED" as const } }
+        : {}),
     ...(filters.classificationSource
       ? {
           classificationSource: filters.classificationSource as Transaction["classificationSource"],
@@ -71,6 +77,34 @@ export async function listTransactions(
     prisma.transaction.count({ where }),
   ]);
   return { items, total };
+}
+
+export interface SummaryRow {
+  type: Transaction["type"];
+  direction: Transaction["direction"];
+  amountMinor: bigint;
+  occurredAt: Date;
+  bucketId: string | null;
+  eventId: string | null;
+}
+
+/** Just the columns needed to total a filtered set — every matching row, not one page. */
+export function listForSummary(
+  prisma: PrismaClient,
+  userId: string,
+  filters: TransactionFilters,
+): Promise<SummaryRow[]> {
+  return prisma.transaction.findMany({
+    where: buildWhere(userId, filters),
+    select: {
+      type: true,
+      direction: true,
+      amountMinor: true,
+      occurredAt: true,
+      bucketId: true,
+      eventId: true,
+    },
+  });
 }
 
 export function findTransactionById(
