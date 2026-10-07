@@ -8,6 +8,8 @@ import {
   Legend,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -22,6 +24,11 @@ import {
   type TrendPoint,
   api,
 } from "@/lib/api";
+
+// Validated categorical palette (dataviz skill, light surface), used in fixed order.
+const SLICE_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"];
+const OTHER_COLOR = "#94a3b8";
+const MAX_NAMED_SLICES = SLICE_COLORS.length;
 
 function currentMonth(): string {
   const now = new Date();
@@ -92,6 +99,23 @@ export default function DashboardPage() {
     () => byBucket.slice(0, 8).map((b) => ({ name: b.bucketName, total: b.total })),
     [byBucket],
   );
+
+  // Top buckets get a colour each (in fixed order); the rest fold into "Other".
+  const shareData = useMemo(() => {
+    const grand = byBucket.reduce((sum, b) => sum + b.total, 0);
+    if (grand <= 0)
+      return { grand: 0, slices: [] as { name: string; total: number; fill: string }[] };
+    const sorted = [...byBucket].sort((a, b) => b.total - a.total);
+    const named = sorted.slice(0, MAX_NAMED_SLICES);
+    const restTotal = sorted.slice(MAX_NAMED_SLICES).reduce((sum, b) => sum + b.total, 0);
+    const slices = named.map((b, i) => ({
+      name: b.bucketName,
+      total: b.total,
+      fill: SLICE_COLORS[i]!,
+    }));
+    if (restTotal > 0) slices.push({ name: "Other", total: restTotal, fill: OTHER_COLOR });
+    return { grand, slices };
+  }, [byBucket]);
 
   function toggleEvent(id: string) {
     setExcludedEventIds((prev) =>
@@ -220,6 +244,61 @@ export default function DashboardPage() {
             </Card>
 
             <Card>
+              <CardHeader className="text-sm font-medium">Where the money went</CardHeader>
+              <CardBody>
+                {shareData.slices.length === 0 ? (
+                  <p className="text-sm text-slate-500">No categorized spending this month.</p>
+                ) : (
+                  <div className="flex flex-col items-center gap-4 sm:flex-row">
+                    <div className="relative h-[220px] w-[220px] shrink-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={shareData.slices}
+                            dataKey="total"
+                            nameKey="name"
+                            innerRadius={66}
+                            outerRadius={104}
+                            stroke="#ffffff"
+                            strokeWidth={2}
+                            isAnimationActive={false}
+                          />
+                          <Tooltip
+                            formatter={(v: number, name: string) => [
+                              `${formatINR(v)} · ${((v / shareData.grand) * 100).toFixed(1)}%`,
+                              name,
+                            ]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-xs text-slate-500">Categorized</span>
+                        <span className="text-lg font-semibold">{formatINR(shareData.grand)}</span>
+                      </div>
+                    </div>
+                    <ul className="w-full space-y-1.5 text-sm" data-testid="spending-share-legend">
+                      {shareData.slices.map((slice) => (
+                        <li key={slice.name} className="flex items-center gap-2">
+                          <span
+                            className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
+                            style={{ backgroundColor: slice.fill }}
+                          />
+                          <span className="flex-1 truncate text-slate-700">{slice.name}</span>
+                          <span className="tabular-nums text-slate-900">
+                            {formatINR(slice.total)}
+                          </span>
+                          <span className="w-12 text-right tabular-nums text-slate-500">
+                            {((slice.total / shareData.grand) * 100).toFixed(1)}%
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+
+            <Card className="lg:col-span-2">
               <CardHeader className="text-sm font-medium">Daily trend</CardHeader>
               <CardBody>
                 {trend.length === 0 ? (
