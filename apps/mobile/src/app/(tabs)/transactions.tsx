@@ -1,19 +1,30 @@
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, SectionList, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { TransactionRow } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.js";
+import { Chip, EmptyState, TransactionRowView, rowTitle, useTheme } from "../../ui/index.js";
 
-function formatAmount(row: TransactionRow): string {
-  const sign = row.direction === "DEBIT" ? "-" : "+";
-  return `${sign}₹${row.amount.toFixed(2)}`;
+type Filter = "ALL" | "OUT" | "IN" | "REVIEW";
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
 }
 
 export default function TransactionsScreen() {
   const { apiClient } = useAuth();
   const router = useRouter();
+  const t = useTheme();
   const [items, setItems] = useState<TransactionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("ALL");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,57 +40,91 @@ export default function TransactionsScreen() {
     void load();
   }, [load]);
 
+  const sections = useMemo(() => {
+    const visible = items.filter((tx) =>
+      filter === "ALL"
+        ? true
+        : filter === "OUT"
+          ? tx.direction === "DEBIT"
+          : filter === "IN"
+            ? tx.direction === "CREDIT"
+            : tx.status === "NEEDS_REVIEW",
+    );
+    const groups = new Map<string, TransactionRow[]>();
+    for (const tx of visible) {
+      const key = dayLabel(tx.occurredAt);
+      groups.set(key, [...(groups.get(key) ?? []), tx]);
+    }
+    return [...groups.entries()].map(([title, data]) => ({ title, data }));
+  }, [items, filter]);
+
   return (
-    <View style={styles.container}>
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} />
+    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: t.bg }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+        <Text style={{ fontSize: 28, fontWeight: "800", color: t.text, letterSpacing: -0.7 }}>
+          Activity
+        </Text>
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 14, marginBottom: 6 }}>
+          <Chip label="All" selected={filter === "ALL"} onPress={() => setFilter("ALL")} />
+          <Chip label="Spent" selected={filter === "OUT"} onPress={() => setFilter("OUT")} />
+          <Chip label="Received" selected={filter === "IN"} onPress={() => setFilter("IN")} />
+          <Chip
+            label="To review"
+            selected={filter === "REVIEW"}
+            onPress={() => setFilter("REVIEW")}
+          />
+        </View>
+      </View>
+
+      {loading && items.length === 0 ? (
+        <ActivityIndicator color={t.brand} style={{ marginTop: 32 }} />
       ) : (
-        <FlatList
-          data={items}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.id}
           onRefresh={load}
           refreshing={loading}
+          stickySectionHeadersEnabled={false}
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          renderSectionHeader={({ section }) => (
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                color: t.textMuted,
+                marginTop: 14,
+                marginBottom: 8,
+              }}
+            >
+              {section.title}
+            </Text>
+          )}
           renderItem={({ item }) => (
-            <Pressable
-              style={styles.row}
+            <TransactionRowView
+              title={rowTitle(item)}
+              meta={item.bucketId ? "Categorized" : "Needs a category"}
+              amount={item.amount}
+              direction={item.direction}
+              type={item.type}
+              badge={item.status === "NEEDS_REVIEW" ? "Review" : undefined}
               onPress={() =>
                 router.push({ pathname: "/transaction/[id]", params: { id: item.id } })
               }
-            >
-              <View style={styles.rowText}>
-                <Text style={styles.merchant}>
-                  {item.merchantRaw ?? item.description ?? item.type}
-                </Text>
-                <Text style={styles.meta}>
-                  {new Date(item.occurredAt).toLocaleDateString()} ·{" "}
-                  {item.bucketId ? "Categorized" : "Uncategorized"}
-                </Text>
-              </View>
-              <Text style={[styles.amount, item.direction === "DEBIT" && styles.debit]}>
-                {formatAmount(item)}
-              </Text>
-            </Pressable>
+            />
           )}
-          ListEmptyComponent={<Text style={styles.empty}>No transactions yet.</Text>}
+          ListEmptyComponent={
+            <EmptyState
+              icon="receipt-outline"
+              title={filter === "ALL" ? "No transactions yet" : "Nothing in this view"}
+              hint={
+                filter === "ALL"
+                  ? "Payments from your UPI apps land here automatically."
+                  : "Try a different filter."
+              }
+            />
+          }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  rowText: { flex: 1 },
-  merchant: { fontSize: 15, color: "#0F172A" },
-  meta: { fontSize: 12, color: "#94A3B8", marginTop: 2 },
-  amount: { fontSize: 15, fontWeight: "600", color: "#16A34A" },
-  debit: { color: "#DC2626" },
-  empty: { textAlign: "center", color: "#94A3B8", marginTop: 24 },
-});

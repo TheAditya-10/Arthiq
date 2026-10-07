@@ -1,12 +1,15 @@
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiClientError } from "../api/client.js";
 import { useAuth } from "../auth/AuthContext.js";
+import { Button, ErrorText, Field, Logo, useTheme } from "../ui/index.js";
 
 export default function LoginScreen() {
   const { login } = useAuth();
   const router = useRouter();
+  const t = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,68 +29,68 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Arthiq</Text>
-      <Text style={styles.subtitle}>Sign in</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Pressable
-        style={[styles.button, submitting && styles.buttonDisabled]}
-        onPress={onSubmit}
-        disabled={submitting}
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {submitting ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Sign in</Text>
-        )}
-      </Pressable>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ alignItems: "center", marginBottom: 36 }}>
+            <Logo size={72} showWordmark={false} />
+            <Text
+              style={{
+                fontSize: 34,
+                fontWeight: "800",
+                letterSpacing: -1,
+                color: t.text,
+                marginTop: 16,
+              }}
+            >
+              Arth<Text style={{ color: t.accent }}>-IQ</Text>
+            </Text>
+            <Text style={{ fontSize: 15, color: t.textMuted, marginTop: 6 }}>
+              Know where every rupee goes.
+            </Text>
+          </View>
 
-      <Link href="/register" style={styles.link}>
-        Don&apos;t have an account? Register
-      </Link>
-    </View>
+          <Field
+            label="Email"
+            icon="mail-outline"
+            placeholder="you@example.com"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <Field
+            label="Password"
+            icon="lock-closed-outline"
+            placeholder="Your password"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+
+          {error ? <ErrorText>{error}</ErrorText> : null}
+
+          <Button
+            label="Sign in"
+            onPress={onSubmit}
+            loading={submitting}
+            style={{ marginTop: 8 }}
+          />
+
+          <Link
+            href="/register"
+            style={{ marginTop: 24, textAlign: "center", color: t.brand, fontWeight: "600" }}
+          >
+            New here? Create an account
+          </Link>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#fff" },
-  title: { fontSize: 32, fontWeight: "700", textAlign: "center", color: "#0F172A" },
-  subtitle: { fontSize: 16, textAlign: "center", color: "#64748B", marginBottom: 32 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: "#0F172A",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  error: { color: "#DC2626", marginBottom: 8 },
-  link: { marginTop: 20, textAlign: "center", color: "#2563EB" },
-});

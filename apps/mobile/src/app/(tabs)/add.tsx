@@ -1,27 +1,45 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { Account, Person } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.js";
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  ChipRow,
+  ErrorText,
+  Field,
+  type IconName,
+  SectionTitle,
+  formatRupees,
+  radius,
+  tabularNums,
+  useTheme,
+} from "../../ui/index.js";
 
 type EntryType = "EXPENSE" | "INCOME" | "CASH_EXPENSE";
-const TYPES: { value: EntryType; label: string }[] = [
-  { value: "EXPENSE", label: "Expense" },
-  { value: "INCOME", label: "Income" },
-  { value: "CASH_EXPENSE", label: "Cash expense" },
+const TYPES: { value: EntryType; label: string; icon: IconName }[] = [
+  { value: "EXPENSE", label: "Expense", icon: "arrow-up-circle-outline" },
+  { value: "INCOME", label: "Income", icon: "arrow-down-circle-outline" },
+  { value: "CASH_EXPENSE", label: "Cash", icon: "cash-outline" },
 ];
 
 export default function AddScreen() {
   const { apiClient } = useAuth();
   const router = useRouter();
+  const t = useTheme();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [type, setType] = useState<EntryType>("EXPENSE");
@@ -118,152 +136,202 @@ export default function AddScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.sectionTitle}>Type</Text>
-      <View style={styles.chipRow}>
-        {TYPES.map((option) => (
-          <Pressable
-            key={option.value}
-            style={[styles.chip, type === option.value && styles.chipSelected]}
-            onPress={() => setType(option.value)}
+    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: t.bg }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={{ fontSize: 28, fontWeight: "800", color: t.text, letterSpacing: -0.7 }}>
+            Add transaction
+          </Text>
+
+          {/* Type segmented control */}
+          <View
+            style={{
+              flexDirection: "row",
+              backgroundColor: t.surfaceAlt,
+              borderRadius: radius.md,
+              padding: 4,
+              marginTop: 16,
+            }}
           >
-            <Text style={type === option.value ? styles.chipTextSelected : styles.chipText}>
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Account</Text>
-      <View style={styles.chipRow}>
-        {accounts.map((account) => (
-          <Pressable
-            key={account.id}
-            style={[styles.chip, accountId === account.id && styles.chipSelected]}
-            onPress={() => setAccountId(account.id)}
-          >
-            <Text style={accountId === account.id ? styles.chipTextSelected : styles.chipText}>
-              {account.name}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Amount</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="0.00"
-        keyboardType="decimal-pad"
-        value={amount}
-        onChangeText={setAmount}
-      />
-
-      <Text style={styles.sectionTitle}>Description</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Optional"
-        value={description}
-        onChangeText={setDescription}
-      />
-
-      {canSplit && people.length > 0 ? (
-        <>
-          <Text style={styles.sectionTitle}>Shared with (optional)</Text>
-          <View style={styles.chipRow}>
-            {people.map((person) => (
-              <Pressable
-                key={person.id}
-                style={[styles.chip, person.id in shares && styles.chipSelected]}
-                onPress={() => toggleShared(person.id)}
-              >
-                <Text style={person.id in shares ? styles.chipTextSelected : styles.chipText}>
-                  {person.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          {sharedIds.length > 0 ? (
-            <>
-              {sharedIds.map((personId) => (
-                <View key={personId} style={styles.shareRow}>
-                  <Text style={styles.shareName}>
-                    {people.find((p) => p.id === personId)?.name} owes
+            {TYPES.map((option) => {
+              const active = type === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => setType(option.value)}
+                  accessibilityState={{ selected: active }}
+                  style={{
+                    flex: 1,
+                    flexDirection: "row",
+                    gap: 6,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: 10,
+                    borderRadius: radius.sm,
+                    backgroundColor: active ? t.surface : "transparent",
+                  }}
+                >
+                  <Ionicons name={option.icon} size={16} color={active ? t.brand : t.textMuted} />
+                  <Text style={{ fontWeight: "700", color: active ? t.text : t.textMuted }}>
+                    {option.label}
                   </Text>
-                  <TextInput
-                    style={[styles.input, styles.shareInput]}
-                    placeholder="0.00"
-                    keyboardType="decimal-pad"
-                    value={shares[personId]}
-                    onChangeText={(value) => setShares((c) => ({ ...c, [personId]: value }))}
-                  />
-                </View>
-              ))}
-              <Pressable onPress={splitEqually}>
-                <Text style={styles.link}>Split equally</Text>
-              </Pressable>
-              <Text style={styles.hint}>
-                Your share: {yourShare >= 0 ? yourShare.toFixed(2) : "—"} · the rest is tracked as
-                owed to you until they pay back.
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Amount */}
+          <Card style={{ marginTop: 16, alignItems: "center", paddingVertical: 26 }}>
+            <Text style={{ color: t.textMuted, fontSize: 13, fontWeight: "600" }}>Amount</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
+              <Text
+                style={{
+                  fontSize: 38,
+                  fontWeight: "800",
+                  color: type === "INCOME" ? t.credit : t.text,
+                }}
+              >
+                ₹
               </Text>
+              <TextInput
+                placeholder="0"
+                placeholderTextColor={t.textFaint}
+                keyboardType="decimal-pad"
+                value={amount}
+                onChangeText={setAmount}
+                style={[
+                  {
+                    fontSize: 44,
+                    fontWeight: "800",
+                    color: type === "INCOME" ? t.credit : t.text,
+                    minWidth: 90,
+                    paddingVertical: 0,
+                    marginLeft: 4,
+                  },
+                  tabularNums,
+                ]}
+              />
+            </View>
+          </Card>
+
+          <SectionTitle>Paid from</SectionTitle>
+          <ChipRow>
+            {accounts.map((account) => (
+              <Chip
+                key={account.id}
+                label={account.name}
+                icon="wallet-outline"
+                selected={accountId === account.id}
+                onPress={() => setAccountId(account.id)}
+              />
+            ))}
+          </ChipRow>
+
+          <View style={{ marginTop: 22 }}>
+            <Field
+              label="Note"
+              icon="create-outline"
+              placeholder="What was it for? (optional)"
+              value={description}
+              onChangeText={setDescription}
+            />
+          </View>
+
+          {canSplit && people.length > 0 ? (
+            <>
+              <SectionTitle>Split with friends</SectionTitle>
+              <ChipRow>
+                {people.map((person) => (
+                  <Chip
+                    key={person.id}
+                    label={person.name}
+                    selected={person.id in shares}
+                    onPress={() => toggleShared(person.id)}
+                  />
+                ))}
+              </ChipRow>
+              {sharedIds.length > 0 ? (
+                <Card style={{ marginTop: 14 }}>
+                  {sharedIds.map((personId) => {
+                    const name = people.find((p) => p.id === personId)?.name ?? "";
+                    return (
+                      <View
+                        key={personId}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 12,
+                          marginBottom: 10,
+                        }}
+                      >
+                        <Avatar name={name} size={36} />
+                        <Text style={{ flex: 1, color: t.text, fontWeight: "600" }}>
+                          {name} owes
+                        </Text>
+                        <TextInput
+                          style={[
+                            {
+                              width: 110,
+                              textAlign: "right",
+                              fontSize: 16,
+                              fontWeight: "700",
+                              color: t.text,
+                              backgroundColor: t.surfaceAlt,
+                              borderRadius: radius.sm,
+                              paddingVertical: 8,
+                              paddingHorizontal: 12,
+                            },
+                            tabularNums,
+                          ]}
+                          placeholder="0.00"
+                          placeholderTextColor={t.textFaint}
+                          keyboardType="decimal-pad"
+                          value={shares[personId]}
+                          onChangeText={(value) => setShares((c) => ({ ...c, [personId]: value }))}
+                        />
+                      </View>
+                    );
+                  })}
+                  <Pressable onPress={splitEqually} style={{ marginTop: 2 }}>
+                    <Text style={{ color: t.brand, fontWeight: "700" }}>Split equally</Text>
+                  </Pressable>
+                  <View
+                    style={{
+                      marginTop: 12,
+                      padding: 12,
+                      borderRadius: radius.sm,
+                      backgroundColor: t.brandSoft,
+                    }}
+                  >
+                    <Text style={{ color: t.text, fontWeight: "700" }}>
+                      Your share: {yourShare >= 0 ? formatRupees(yourShare) : "—"}
+                    </Text>
+                    <Text style={{ color: t.textMuted, fontSize: 13, marginTop: 2 }}>
+                      The rest is tracked as owed to you until they pay back.
+                    </Text>
+                  </View>
+                </Card>
+              ) : null}
             </>
           ) : null}
-        </>
-      ) : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <ErrorText>{error}</ErrorText> : null}
 
-      <Pressable
-        style={[styles.submitButton, saving && styles.submitButtonDisabled]}
-        onPress={submit}
-        disabled={saving}
-      >
-        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Save</Text>}
-      </Pressable>
-    </ScrollView>
+          <Button
+            label="Save transaction"
+            icon="checkmark"
+            onPress={submit}
+            loading={saving}
+            style={{ marginTop: 24 }}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 20,
-    marginBottom: 8,
-    color: "#0F172A",
-  },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  chipSelected: { backgroundColor: "#0F172A", borderColor: "#0F172A" },
-  chipText: { color: "#334155" },
-  chipTextSelected: { color: "#fff" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  shareRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10 },
-  shareName: { flex: 1, color: "#334155" },
-  shareInput: { width: 120 },
-  link: { color: "#2563EB", marginTop: 12 },
-  hint: { color: "#64748B", marginTop: 8 },
-  error: { color: "#DC2626", marginTop: 12 },
-  submitButton: {
-    backgroundColor: "#0F172A",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    marginTop: 24,
-    marginBottom: 40,
-  },
-  submitButtonDisabled: { opacity: 0.6 },
-  submitText: { color: "#fff", fontWeight: "600" },
-});

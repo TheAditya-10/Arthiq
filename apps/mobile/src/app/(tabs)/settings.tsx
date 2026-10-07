@@ -1,27 +1,51 @@
 import { NotificationProviderKey } from "@arthiq/types";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as NativeListener from "../../../modules/notification-listener/index.js";
 import type { Account } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.js";
+import { getDiagnostics, subscribeDiagnostics } from "../../notifications/diagnostics.js";
 import { useNotificationSettings } from "../../notifications/NotificationSettingsContext.js";
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  ChipRow,
+  SectionTitle,
+  radius,
+  useTheme,
+} from "../../ui/index.js";
 
 const PROVIDER_LABELS: { key: NotificationProviderKey; label: string }[] = [
   { key: NotificationProviderKey.GOOGLE_PAY, label: "Google Pay" },
   { key: NotificationProviderKey.PHONEPE, label: "PhonePe" },
   { key: NotificationProviderKey.PAYTM, label: "Paytm" },
+  { key: NotificationProviderKey.GENERIC_UPI, label: "Bank SMS alerts (any UPI app)" },
 ];
 
 export default function SettingsScreen() {
   const { user, apiClient, logout } = useAuth();
+  const t = useTheme();
   const { settings, updateSettings } = useNotificationSettings();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const diagnostics = useSyncExternalStore(subscribeDiagnostics, getDiagnostics);
+  const [listenerStatus, setListenerStatus] = useState<NativeListener.ListenerStatus | null>(null);
   const [accessStatus, setAccessStatus] = useState<"granted" | "denied" | "unknown">("unknown");
 
   useEffect(() => {
     void apiClient.accounts.list().then(setAccounts);
     setAccessStatus(NativeListener.getAccessStatus());
   }, [apiClient]);
+
+  useEffect(() => {
+    const refresh = () => setListenerStatus(NativeListener.getListenerStatus());
+    refresh();
+    const timer = setInterval(refresh, 2000);
+    return () => clearInterval(timer);
+  }, []);
 
   async function setProviderAccount(provider: NotificationProviderKey, accountId: string | null) {
     const next = { ...settings, accountByProvider: { ...settings.accountByProvider } };
@@ -33,97 +57,166 @@ export default function SettingsScreen() {
     await updateSettings(next);
   }
 
+  const granted = accessStatus === "granted";
+
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.sectionTitle}>Account</Text>
-      <Text style={styles.value}>{user?.email}</Text>
-      <Pressable onPress={() => void logout()}>
-        <Text style={styles.logout}>Sign out</Text>
-      </Pressable>
+    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: t.bg }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <Text style={{ fontSize: 28, fontWeight: "800", color: t.text, letterSpacing: -0.7 }}>
+          Settings
+        </Text>
 
-      <Text style={styles.sectionTitle}>Notification access</Text>
-      <Text style={styles.value}>
-        {accessStatus === "granted" ? "Granted" : "Not granted"} — required to capture UPI
-        transaction notifications automatically.
-      </Text>
-      {accessStatus !== "granted" ? (
-        <Pressable style={styles.linkButton} onPress={() => NativeListener.openSettings()}>
-          <Text style={styles.linkButtonText}>Open notification access settings</Text>
-        </Pressable>
-      ) : null}
-
-      <Text style={styles.sectionTitle}>Capture from</Text>
-      <Text style={styles.hint}>
-        Map each payment app to the account its notifications should be recorded against. Leaving
-        one unmapped means its notifications are ignored.
-      </Text>
-
-      {PROVIDER_LABELS.map(({ key, label }) => (
-        <View key={key} style={styles.providerRow}>
-          <Text style={styles.providerLabel}>{label}</Text>
-          <View style={styles.chipRow}>
-            <Pressable
-              style={[styles.chip, !settings.accountByProvider[key] && styles.chipSelected]}
-              onPress={() => void setProviderAccount(key, null)}
-            >
-              <Text
-                style={!settings.accountByProvider[key] ? styles.chipTextSelected : styles.chipText}
-              >
-                Off
-              </Text>
-            </Pressable>
-            {accounts.map((account) => (
-              <Pressable
-                key={account.id}
-                style={[
-                  styles.chip,
-                  settings.accountByProvider[key] === account.id && styles.chipSelected,
-                ]}
-                onPress={() => void setProviderAccount(key, account.id)}
-              >
-                <Text
-                  style={
-                    settings.accountByProvider[key] === account.id
-                      ? styles.chipTextSelected
-                      : styles.chipText
-                  }
-                >
-                  {account.name}
-                </Text>
-              </Pressable>
-            ))}
+        <Card style={{ flexDirection: "row", alignItems: "center", gap: 14, marginTop: 16 }}>
+          <Avatar name={user?.displayName ?? user?.email ?? "?"} size={52} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 17, fontWeight: "700", color: t.text }}>
+              {user?.displayName}
+            </Text>
+            <Text style={{ fontSize: 13.5, color: t.textMuted }}>{user?.email}</Text>
           </View>
-        </View>
-      ))}
-    </ScrollView>
+          <Pressable
+            accessibilityLabel="Sign out"
+            onPress={() => void logout()}
+            style={{ padding: 10, borderRadius: radius.pill, backgroundColor: t.debitSoft }}
+          >
+            <Ionicons name="log-out-outline" size={20} color={t.debit} />
+          </Pressable>
+        </Card>
+
+        <SectionTitle>Automatic capture</SectionTitle>
+        <Card
+          style={{
+            backgroundColor: granted ? t.creditSoft : t.warnSoft,
+            borderColor: "transparent",
+          }}
+        >
+          <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+            <Ionicons
+              name={granted ? "checkmark-circle" : "alert-circle"}
+              size={28}
+              color={granted ? t.credit : t.onWarn}
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{ fontWeight: "700", color: granted ? t.credit : t.onWarn, fontSize: 16 }}
+              >
+                {granted ? "Notification access is on" : "Notification access is off"}
+              </Text>
+              <Text style={{ color: t.textMuted, fontSize: 13.5, marginTop: 2 }}>
+                Needed to log UPI payments from your notifications.
+              </Text>
+            </View>
+          </View>
+          {!granted ? (
+            <Button
+              label="Open notification access settings"
+              icon="open-outline"
+              onPress={() => NativeListener.openSettings()}
+              style={{ marginTop: 14 }}
+            />
+          ) : null}
+        </Card>
+
+        <SectionTitle>Capture from</SectionTitle>
+        <Text style={{ fontSize: 13.5, color: t.textMuted, marginBottom: 12 }}>
+          Pick the account each payment app records against. Apps set to Off are ignored.
+        </Text>
+
+        {PROVIDER_LABELS.map(({ key, label }) => (
+          <Card key={key} style={{ marginBottom: 10 }}>
+            <Text style={{ fontSize: 15, fontWeight: "700", color: t.text, marginBottom: 10 }}>
+              {label}
+            </Text>
+            <ChipRow>
+              <Chip
+                label="Off"
+                selected={!settings.accountByProvider[key]}
+                onPress={() => void setProviderAccount(key, null)}
+              />
+              {accounts.map((account) => (
+                <Chip
+                  key={account.id}
+                  label={account.name}
+                  selected={settings.accountByProvider[key] === account.id}
+                  onPress={() => void setProviderAccount(key, account.id)}
+                />
+              ))}
+            </ChipRow>
+          </Card>
+        ))}
+
+        <SectionTitle>Listener status</SectionTitle>
+        {listenerStatus ? (
+          <Card>
+            <StatusRow label="Service connected" ok={listenerStatus.serviceConnected} />
+            <StatusRow label="Forwarding enabled" ok={listenerStatus.processingEnabled} />
+            <Detail label="Allowed apps" value={listenerStatus.allowedPackages || "(none)"} />
+            <Detail label="Notifications seen (any app)" value={String(listenerStatus.seenCount)} />
+            <Detail label="Forwarded to app" value={String(listenerStatus.forwardedCount)} />
+            <Detail label="Last app seen" value={listenerStatus.lastSeenPackage || "(none)"} />
+          </Card>
+        ) : null}
+
+        <SectionTitle>Recent payment notifications</SectionTitle>
+        <Text style={{ fontSize: 13.5, color: t.textMuted, marginBottom: 10 }}>
+          What the app saw from your enabled payment apps since it was last opened, and what it did
+          with each. Empty means nothing has arrived yet.
+        </Text>
+        {diagnostics.length === 0 ? <Text style={{ color: t.textFaint }}>None yet.</Text> : null}
+        {diagnostics.map((entry) => (
+          <View
+            key={`${entry.at}-${entry.text}`}
+            style={{
+              marginBottom: 8,
+              padding: 12,
+              borderRadius: radius.md,
+              backgroundColor: t.surfaceAlt,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: "700", color: t.text }}>
+              {new Date(entry.at).toLocaleTimeString()} · {entry.outcome}
+            </Text>
+            <Text style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
+              {entry.packageName}: {entry.title} | {entry.text}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 24,
-    marginBottom: 8,
-    color: "#0F172A",
-  },
-  value: { fontSize: 15, color: "#334155" },
-  hint: { fontSize: 13, color: "#94A3B8", marginBottom: 12 },
-  logout: { color: "#DC2626", marginTop: 8 },
-  linkButton: { marginTop: 8 },
-  linkButtonText: { color: "#2563EB" },
-  providerRow: { marginTop: 16 },
-  providerLabel: { fontSize: 15, fontWeight: "600", marginBottom: 8, color: "#0F172A" },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  chipSelected: { backgroundColor: "#0F172A", borderColor: "#0F172A" },
-  chipText: { color: "#334155" },
-  chipTextSelected: { color: "#fff" },
-});
+function StatusRow({ label, ok }: { label: string; ok: boolean }) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 7 }}>
+      <Text style={{ flex: 1, color: t.text }}>{label}</Text>
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 5,
+          alignItems: "center",
+          backgroundColor: ok ? t.creditSoft : t.debitSoft,
+          paddingHorizontal: 10,
+          paddingVertical: 4,
+          borderRadius: radius.pill,
+        }}
+      >
+        <Ionicons name={ok ? "checkmark" : "close"} size={13} color={ok ? t.credit : t.debit} />
+        <Text style={{ fontSize: 12, fontWeight: "700", color: ok ? t.credit : t.debit }}>
+          {ok ? "Yes" : "No"}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  const t = useTheme();
+  return (
+    <View style={{ paddingVertical: 7 }}>
+      <Text style={{ fontSize: 12, color: t.textFaint }}>{label}</Text>
+      <Text style={{ fontSize: 14, color: t.text, marginTop: 1 }}>{value}</Text>
+    </View>
+  );
+}

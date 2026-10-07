@@ -1,16 +1,20 @@
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import type { Account, PersonWithBalance } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.js";
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  ChipRow,
+  Field,
+  SectionTitle,
+  formatRupees,
+  tabularNums,
+  useTheme,
+} from "../../ui/index.js";
 
 type EntryType = "LENT" | "BORROWED" | "REPAYMENT_RECEIVED" | "REPAYMENT_MADE";
 const ENTRY_TYPES: { value: EntryType; label: string }[] = [
@@ -23,6 +27,7 @@ const ENTRY_TYPES: { value: EntryType; label: string }[] = [
 export default function PersonDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { apiClient } = useAuth();
+  const t = useTheme();
 
   const [person, setPerson] = useState<PersonWithBalance | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -72,121 +77,109 @@ export default function PersonDetailScreen() {
 
   if (loading || !person) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator />
+      <View
+        style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: t.bg }}
+      >
+        <ActivityIndicator color={t.brand} />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>{person.name}</Text>
-
-      <View style={styles.balanceRow}>
-        <View style={styles.balanceCell}>
-          <Text style={styles.balanceLabel}>They owe you</Text>
-          <Text style={styles.balancePositive}>₹{person.receivable.toFixed(2)}</Text>
-        </View>
-        <View style={styles.balanceCell}>
-          <Text style={styles.balanceLabel}>You owe them</Text>
-          <Text style={styles.balanceNegative}>₹{person.payable.toFixed(2)}</Text>
-        </View>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: t.bg }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
+    >
+      <View style={{ alignItems: "center", marginTop: 4 }}>
+        <Avatar name={person.name} size={72} />
+        <Text
+          style={{
+            fontSize: 24,
+            fontWeight: "800",
+            color: t.text,
+            marginTop: 12,
+            letterSpacing: -0.5,
+          }}
+        >
+          {person.name}
+        </Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Record lending / repayment</Text>
+      <View style={{ flexDirection: "row", gap: 12, marginTop: 20 }}>
+        <Card style={{ flex: 1, backgroundColor: t.creditSoft, borderColor: "transparent" }}>
+          <Text style={{ fontSize: 13, color: t.textMuted, fontWeight: "600" }}>They owe you</Text>
+          <Text
+            style={[
+              { fontSize: 22, fontWeight: "800", color: t.credit, marginTop: 4 },
+              tabularNums,
+            ]}
+          >
+            {formatRupees(person.receivable)}
+          </Text>
+        </Card>
+        <Card style={{ flex: 1, backgroundColor: t.debitSoft, borderColor: "transparent" }}>
+          <Text style={{ fontSize: 13, color: t.textMuted, fontWeight: "600" }}>You owe them</Text>
+          <Text
+            style={[{ fontSize: 22, fontWeight: "800", color: t.debit, marginTop: 4 }, tabularNums]}
+          >
+            {formatRupees(person.payable)}
+          </Text>
+        </Card>
+      </View>
 
-      <View style={styles.chipRow}>
+      <SectionTitle>Record lending or repayment</SectionTitle>
+      <ChipRow>
         {ENTRY_TYPES.map((option) => (
-          <Pressable
+          <Chip
             key={option.value}
-            style={[styles.chip, entryType === option.value && styles.chipSelected]}
+            label={option.label}
+            selected={entryType === option.value}
             onPress={() => setEntryType(option.value)}
-          >
-            <Text style={entryType === option.value ? styles.chipTextSelected : styles.chipText}>
-              {option.label}
-            </Text>
-          </Pressable>
+          />
         ))}
-      </View>
+      </ChipRow>
 
-      <Text style={styles.label}>Account</Text>
-      <View style={styles.chipRow}>
-        {accounts.map((account) => (
-          <Pressable
-            key={account.id}
-            style={[styles.chip, accountId === account.id && styles.chipSelected]}
-            onPress={() => setAccountId(account.id)}
-          >
-            <Text style={accountId === account.id ? styles.chipTextSelected : styles.chipText}>
-              {account.name}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Amount</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="0.00"
-        keyboardType="decimal-pad"
-        value={amount}
-        onChangeText={setAmount}
-      />
-
-      <Pressable
-        style={[styles.submitButton, saving && styles.submitButtonDisabled]}
-        onPress={recordEntry}
-        disabled={saving}
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "600",
+          color: t.textMuted,
+          marginTop: 20,
+          marginBottom: 8,
+        }}
       >
-        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Save</Text>}
-      </Pressable>
+        Account
+      </Text>
+      <ChipRow>
+        {accounts.map((account) => (
+          <Chip
+            key={account.id}
+            label={account.name}
+            icon="wallet-outline"
+            selected={accountId === account.id}
+            onPress={() => setAccountId(account.id)}
+          />
+        ))}
+      </ChipRow>
+
+      <View style={{ marginTop: 20 }}>
+        <Field
+          label="Amount"
+          icon="cash-outline"
+          placeholder="0.00"
+          keyboardType="decimal-pad"
+          value={amount}
+          onChangeText={setAmount}
+        />
+      </View>
+
+      <Button
+        label="Save entry"
+        icon="checkmark"
+        onPress={recordEntry}
+        loading={saving}
+        style={{ marginTop: 12 }}
+      />
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 22, fontWeight: "700", color: "#0F172A" },
-  balanceRow: { flexDirection: "row", marginTop: 16, gap: 16 },
-  balanceCell: { flex: 1 },
-  balanceLabel: { fontSize: 12, color: "#94A3B8" },
-  balancePositive: { fontSize: 20, fontWeight: "700", color: "#16A34A" },
-  balanceNegative: { fontSize: 20, fontWeight: "700", color: "#DC2626" },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 28,
-    marginBottom: 8,
-    color: "#0F172A",
-  },
-  label: { fontSize: 13, color: "#64748B", marginTop: 16, marginBottom: 8 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  chipSelected: { backgroundColor: "#0F172A", borderColor: "#0F172A" },
-  chipText: { color: "#334155" },
-  chipTextSelected: { color: "#fff" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  submitButton: {
-    backgroundColor: "#0F172A",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    marginTop: 24,
-    marginBottom: 40,
-  },
-  submitButtonDisabled: { opacity: 0.6 },
-  submitText: { color: "#fff", fontWeight: "600" },
-});

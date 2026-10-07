@@ -1,20 +1,16 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { Person } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.js";
+import { Avatar, EmptyState, Field, radius, useTheme } from "../../ui/index.js";
 
 export default function PeopleScreen() {
   const { apiClient } = useAuth();
   const router = useRouter();
+  const t = useTheme();
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
@@ -47,60 +43,89 @@ export default function PeopleScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} />
+    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: t.bg }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+        <Text style={{ fontSize: 28, fontWeight: "800", color: t.text, letterSpacing: -0.7 }}>
+          People
+        </Text>
+        <Text style={{ fontSize: 14, color: t.textMuted, marginTop: 4, marginBottom: 14 }}>
+          Friends you split bills with, lend to or borrow from.
+        </Text>
+        <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
+          <View style={{ flex: 1 }}>
+            <Field
+              icon="person-add-outline"
+              placeholder="Add a person"
+              value={newName}
+              onChangeText={setNewName}
+              onSubmitEditing={addPerson}
+              returnKeyType="done"
+            />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add person"
+            onPress={addPerson}
+            disabled={creating || !newName.trim()}
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: radius.md,
+              backgroundColor: t.brand,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: creating || !newName.trim() ? 0.5 : 1,
+            }}
+          >
+            {creating ? (
+              <ActivityIndicator color={t.onBrand} />
+            ) : (
+              <Ionicons name="add" size={26} color={t.onBrand} />
+            )}
+          </Pressable>
+        </View>
+      </View>
+
+      {loading && people.length === 0 ? (
+        <ActivityIndicator color={t.brand} style={{ marginTop: 32 }} />
       ) : (
         <FlatList
           data={people}
           keyExtractor={(item) => item.id}
           onRefresh={load}
           refreshing={loading}
+          contentContainerStyle={{ padding: 16, paddingTop: 4 }}
           renderItem={({ item }) => (
             <Pressable
-              style={styles.row}
               onPress={() => router.push({ pathname: "/person/[id]", params: { id: item.id } })}
+              style={({ pressed }) => ({
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 14,
+                padding: 14,
+                marginBottom: 8,
+                borderRadius: radius.md,
+                backgroundColor: pressed ? t.surfaceAlt : t.surface,
+                borderWidth: 1,
+                borderColor: t.border,
+              })}
             >
-              <Text style={styles.name}>{item.name}</Text>
+              <Avatar name={item.name} />
+              <Text style={{ flex: 1, fontSize: 16, fontWeight: "600", color: t.text }}>
+                {item.name}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={t.textFaint} />
             </Pressable>
           )}
-          ListEmptyComponent={<Text style={styles.empty}>No one added yet.</Text>}
+          ListEmptyComponent={
+            <EmptyState
+              icon="people-outline"
+              title="No one added yet"
+              hint="Add a friend above to track who owes what."
+            />
+          }
         />
       )}
-
-      <View style={styles.addRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Add a person"
-          value={newName}
-          onChangeText={setNewName}
-        />
-        <Pressable style={styles.addButton} onPress={addPerson} disabled={creating}>
-          <Text style={styles.addButtonText}>Add</Text>
-        </Pressable>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
-  row: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
-  name: { fontSize: 16, color: "#0F172A" },
-  empty: { textAlign: "center", color: "#94A3B8", marginTop: 24 },
-  addRow: { flexDirection: "row", gap: 8, marginTop: 12 },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 10,
-  },
-  addButton: {
-    backgroundColor: "#0F172A",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    justifyContent: "center",
-  },
-  addButtonText: { color: "#fff", fontWeight: "600" },
-});

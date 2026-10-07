@@ -1,12 +1,15 @@
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiClientError } from "../api/client.js";
 import { useAuth } from "../auth/AuthContext.js";
+import { Button, ErrorText, Field, Logo, useTheme } from "../ui/index.js";
 
 export default function RegisterScreen() {
   const { register } = useAuth();
   const router = useRouter();
+  const t = useTheme();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,78 +30,75 @@ export default function RegisterScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create account</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Name"
-        value={displayName}
-        onChangeText={setDisplayName}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Pressable
-        style={[styles.button, submitting && styles.buttonDisabled]}
-        onPress={onSubmit}
-        disabled={submitting}
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {submitting ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Create account</Text>
-        )}
-      </Pressable>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ alignItems: "center", marginBottom: 32 }}>
+            <Logo size={56} showWordmark={false} />
+            <Text
+              style={{
+                fontSize: 28,
+                fontWeight: "800",
+                letterSpacing: -0.8,
+                color: t.text,
+                marginTop: 14,
+              }}
+            >
+              Create your account
+            </Text>
+            <Text style={{ fontSize: 15, color: t.textMuted, marginTop: 6 }}>
+              Takes a minute. Your payments log themselves after that.
+            </Text>
+          </View>
 
-      <Link href="/login" style={styles.link}>
-        Already have an account? Sign in
-      </Link>
-    </View>
+          <Field
+            label="Name"
+            icon="person-outline"
+            placeholder="What should we call you?"
+            value={displayName}
+            onChangeText={setDisplayName}
+          />
+          <Field
+            label="Email"
+            icon="mail-outline"
+            placeholder="you@example.com"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <Field
+            label="Password"
+            icon="lock-closed-outline"
+            placeholder="Choose a password"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+
+          {error ? <ErrorText>{error}</ErrorText> : null}
+
+          <Button
+            label="Create account"
+            onPress={onSubmit}
+            loading={submitting}
+            style={{ marginTop: 8 }}
+          />
+
+          <Link
+            href="/login"
+            style={{ marginTop: 24, textAlign: "center", color: t.brand, fontWeight: "600" }}
+          >
+            Already have an account? Sign in
+          </Link>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#fff" },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    textAlign: "center",
-    color: "#0F172A",
-    marginBottom: 32,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: "#0F172A",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  error: { color: "#DC2626", marginBottom: 8 },
-  link: { marginTop: 20, textAlign: "center", color: "#2563EB" },
-});
