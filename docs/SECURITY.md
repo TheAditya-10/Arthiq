@@ -53,9 +53,23 @@ See ADR-003 for full rationale. Summary controls:
 
 ## 6. Data Deletion
 
-`DELETE /users/me` performs a hard cascade delete of all of that user's rows (accounts, transactions, people, ledger entries, merchant rules, notification sources, imports, audit logs, sessions) within a single database transaction — a full "right to be forgotten" path, since this is personal financial data with no other party's data mixed in. There is no soft "deactivate" state for account deletion itself (soft-delete/archive is used for buckets/accounts/people during _normal use_, but full user deletion is a hard, irreversible delete, and the API confirms this distinction to the client so a UI can warn the user appropriately).
+`DELETE /users/me` first requires the caller to re-enter their password (`INVALID_PASSWORD` / 403 otherwise, so a stolen or left-open session can't erase an account), then performs a hard cascade delete of all of that user's rows (accounts, transactions, people, ledger entries, merchant rules, notification sources, imports, audit logs, sessions) within a single database transaction — a full "right to be forgotten" path, since this is personal financial data with no other party's data mixed in. There is no soft "deactivate" state for account deletion itself (soft-delete/archive is used for buckets/accounts/people during _normal use_, but full user deletion is a hard, irreversible delete, and the API confirms this distinction to the client so a UI can warn the user appropriately).
 
-## 7. Known Limitations (V1, honestly stated)
+## 7. Privacy & Trust Controls
+
+Added for public release (see `docs/PLAY_STORE_CHECKLIST.md`):
+
+- **OTP / secret filter** (`apps/mobile/src/notifications/sensitive.ts`): runs first in the pipeline, right after the app allow-list. A notification where an OTP/verification-code/PIN/password keyword sits next to a numeric code is dropped before parsing, diagnostics, storage or network. Bare keywords ("never share your OTP") don't trigger it, so real bank alerts survive.
+- **No content retention for non-payments**: the in-memory diagnostics list stores only the sending app and outcome for `no-parser-match` / `dropped-sensitive`; it keeps text only for notifications recognised as payments.
+- **Consent gate**: capture is off until the user accepts the in-app prominent disclosure (`app/disclosure.tsx`, versioned by `DISCLOSURE_VERSION`). `resolveEnabledPackages` returns `[]` without current consent or while paused, so the native listener discards everything. Users can pause, withdraw consent, export and delete from Settings.
+- **Data export**: `GET /users/me/export` (5/hour) returns everything the user owns as JSON, excluding password hash/salt, sessions, staged import rows and raw notification text.
+- **Security headers** on every API response (`nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, HSTS in production, `Cache-Control: no-store`).
+- **`trustProxy`**: enabled on Vercel (or `TRUST_PROXY=true`), so per-IP rate limits key on the real client address instead of the proxy's.
+- **Release signing**: `plugins/withReleaseSigning.js` signs release builds with a real keystore supplied via `ARTHIQ_KEYSTORE_*` environment variables (kept outside the repo). Falls back to the debug key with a warning when unset; such a build must not be published.
+- **`allowBackup=false`**: the app's data is excluded from Android cloud/adb backup.
+- **Public pages**: `/privacy`, `/terms`, `/trust`, `/delete-account`, `/contact` on the web app (no sign-in needed). Operator details come from `NEXT_PUBLIC_*` env vars (`lib/site.ts`).
+
+## 8. Known Limitations (V1, honestly stated)
 
 - No 2FA in V1 (documented as a roadmap item).
 - No WAF/DDoS-specific hardening beyond Vercel's platform defaults and the app-level rate limiting described above.

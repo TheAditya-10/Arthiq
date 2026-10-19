@@ -17,10 +17,27 @@ export interface NotificationSettings {
   accountByProvider: Partial<Record<NotificationProviderKey, string>>;
   /** Extra package names (beyond the three named providers) the user has explicitly allow-listed for the generic UPI fallback parser — see docs/ADR/005's "extension point" note. */
   genericPackages: string[];
+  /** Master switch: when true nothing is read, regardless of the per-app choices. */
+  paused: boolean;
+  /**
+   * The user's acceptance of the in-app "what we read" disclosure
+   * (screens/disclosure). Capture stays off until this exists for the CURRENT
+   * disclosure version, so Notification access is never used on the strength
+   * of the Android permission alone — Google Play requires prominent
+   * disclosure and consent before sensitive data is accessed.
+   */
+  consent: { version: number; at: string } | null;
+}
+
+/** Bump when the disclosure text changes materially; users are asked again. */
+export const DISCLOSURE_VERSION = 1;
+
+export function hasValidConsent(settings: NotificationSettings): boolean {
+  return settings.consent?.version === DISCLOSURE_VERSION;
 }
 
 export function defaultNotificationSettings(): NotificationSettings {
-  return { accountByProvider: {}, genericPackages: [] };
+  return { accountByProvider: {}, genericPackages: [], paused: false, consent: null };
 }
 
 export async function loadNotificationSettings(
@@ -33,6 +50,13 @@ export async function loadNotificationSettings(
     return {
       accountByProvider: parsed.accountByProvider ?? {},
       genericPackages: Array.isArray(parsed.genericPackages) ? parsed.genericPackages : [],
+      paused: parsed.paused === true,
+      consent:
+        parsed.consent &&
+        typeof parsed.consent.version === "number" &&
+        typeof parsed.consent.at === "string"
+          ? { version: parsed.consent.version, at: parsed.consent.at }
+          : null,
     };
   } catch {
     return defaultNotificationSettings();
@@ -48,6 +72,9 @@ export async function saveNotificationSettings(
 
 /** The package names the native listener should be allowed to forward, given the current settings. */
 export function resolveEnabledPackages(settings: NotificationSettings): string[] {
+  // Without consent, or while paused, the allow-list is empty, so the native
+  // listener discards everything on arrival.
+  if (settings.paused || !hasValidConsent(settings)) return [];
   const packages: string[] = [];
   if (settings.accountByProvider[NotificationProviderKey.GOOGLE_PAY]) {
     packages.push(...GooglePayParser.packageNames);

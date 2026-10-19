@@ -71,6 +71,11 @@ function RootNavigator() {
           options={{ headerShown: true, title: "Transaction", presentation: "modal" }}
         />
         <Stack.Screen
+          name="disclosure"
+          redirect={!user}
+          options={{ presentation: "modal", gestureEnabled: false }}
+        />
+        <Stack.Screen
           name="person/[id]"
           redirect={!user}
           options={{ headerShown: true, title: "Person" }}

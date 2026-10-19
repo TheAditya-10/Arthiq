@@ -1,3 +1,4 @@
+import { LegalLinks } from "@/components/legal/legal-links";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
@@ -47,6 +48,7 @@ export function AuthShell({
           <h1 className="page-title">{title}</h1>
           <p className="mb-6 mt-1 text-sm text-slate-500">{subtitle}</p>
           {children}
+          <LegalLinks className="mt-10" />
         </div>
       </section>
     </main>

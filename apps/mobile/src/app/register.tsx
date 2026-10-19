@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-na
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiClientError } from "../api/client.js";
 import { useAuth } from "../auth/AuthContext.js";
+import { openLegal } from "../legal.js";
 import { Button, ErrorText, Field, Logo, useTheme } from "../ui/index.js";
 
 export default function RegisterScreen() {
@@ -83,6 +84,21 @@ export default function RegisterScreen() {
           />
 
           {error ? <ErrorText>{error}</ErrorText> : null}
+
+          <Text style={{ fontSize: 12.5, color: t.textMuted, marginTop: 4, lineHeight: 18 }}>
+            By creating an account you agree to the{" "}
+            <Text style={{ color: t.brand, fontWeight: "700" }} onPress={() => openLegal("terms")}>
+              Terms of Service
+            </Text>{" "}
+            and acknowledge the{" "}
+            <Text
+              style={{ color: t.brand, fontWeight: "700" }}
+              onPress={() => openLegal("privacy")}
+            >
+              Privacy Policy
+            </Text>
+            .
+          </Text>
 
           <Button
             label="Create account"

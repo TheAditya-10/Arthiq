@@ -72,6 +72,17 @@ export default function RegisterPage() {
           />
           <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
         </div>
+        <p className="text-xs text-slate-500">
+          By creating an account you agree to the{" "}
+          <Link href="/terms" className="font-semibold underline">
+            Terms of Service
+          </Link>{" "}
+          and acknowledge the{" "}
+          <Link href="/privacy" className="font-semibold underline">
+            Privacy Policy
+          </Link>
+          .
+        </p>
         {error && <Alert>{error}</Alert>}
         <Button type="submit" className="w-full" disabled={submitting}>
           {submitting ? "Creating account..." : "Create account"}
