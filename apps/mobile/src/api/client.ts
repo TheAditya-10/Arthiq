@@ -226,8 +226,21 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     return payload as T;
   }
 
+  // Refresh tokens rotate on use, so two overlapping refreshes (e.g. the UI
+  // starting up while a headless notification task sends) would have the
+  // second one present an already-spent token and sign the user out. Callers
+  // share one in-flight refresh instead.
+  let refreshInFlight: Promise<string | null> | null = null;
+
   /** Refreshes the access token using the stored refresh token. Returns the new token, or null if refresh failed. */
-  async function tryRefreshAccessToken(): Promise<string | null> {
+  function tryRefreshAccessToken(): Promise<string | null> {
+    refreshInFlight ??= refreshOnce().finally(() => {
+      refreshInFlight = null;
+    });
+    return refreshInFlight;
+  }
+
+  async function refreshOnce(): Promise<string | null> {
     const refreshToken = await tokenStore.getRefreshToken();
     if (!refreshToken) return null;
     try {

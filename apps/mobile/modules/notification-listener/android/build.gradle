@@ -22,7 +22,8 @@ android {
 }
 
 dependencies {
-  // No extra deps — this module only wraps a stock Android platform API
-  // (NotificationListenerService), never a third-party payment SDK. See
+  // Only stock platform APIs (NotificationListenerService) plus React Native
+  // itself for HeadlessJsTaskService — never a third-party payment SDK. See
   // docs/ADR/005-notification-ingestion.md.
+  implementation 'com.facebook.react:react-android'
 }

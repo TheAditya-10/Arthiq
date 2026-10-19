@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, AppState, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as NativeListener from "../../../modules/notification-listener/index.js";
 import type { Account } from "../../api/client.js";
@@ -43,11 +43,24 @@ export default function SettingsScreen() {
   const diagnostics = useSyncExternalStore(subscribeDiagnostics, getDiagnostics);
   const [listenerStatus, setListenerStatus] = useState<NativeListener.ListenerStatus | null>(null);
   const [accessStatus, setAccessStatus] = useState<"granted" | "denied" | "unknown">("unknown");
+  const [batteryUnrestricted, setBatteryUnrestricted] = useState(true);
 
   useEffect(() => {
     void apiClient.accounts.list().then(setAccounts);
-    setAccessStatus(NativeListener.getAccessStatus());
   }, [apiClient]);
+
+  // Re-read on return from Android settings, where both of these get changed.
+  useEffect(() => {
+    const read = () => {
+      setAccessStatus(NativeListener.getAccessStatus());
+      setBatteryUnrestricted(NativeListener.isIgnoringBatteryOptimizations());
+    };
+    read();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") read();
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     const refresh = () => setListenerStatus(NativeListener.getListenerStatus());
@@ -236,6 +249,29 @@ export default function SettingsScreen() {
           )}
         </Card>
 
+        {capturing && !batteryUnrestricted ? (
+          <Card style={{ marginTop: 10, backgroundColor: t.warnSoft, borderColor: "transparent" }}>
+            <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+              <Ionicons name="battery-half-outline" size={26} color={t.onWarn} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: "700", color: t.onWarn, fontSize: 15 }}>
+                  Keep capturing when the app is closed
+                </Text>
+                <Text style={{ color: t.textMuted, fontSize: 13.5, marginTop: 2 }}>
+                  Your phone may stop Arth-IQ in the background. In App info, set Battery to
+                  Unrestricted, and turn on Auto-start if your phone has it.
+                </Text>
+              </View>
+            </View>
+            <Button
+              label="Open App info"
+              icon="open-outline"
+              onPress={() => NativeListener.openAppSettings()}
+              style={{ marginTop: 14 }}
+            />
+          </Card>
+        ) : null}
+
         <SectionTitle>Capture from</SectionTitle>
         <Text style={{ fontSize: 13.5, color: t.textMuted, marginBottom: 12 }}>
           Pick the account each payment app records against. Apps set to Off are ignored.
@@ -350,6 +386,7 @@ export default function SettingsScreen() {
             <Detail label="Allowed apps" value={listenerStatus.allowedPackages || "(none)"} />
             <Detail label="Notifications seen (any app)" value={String(listenerStatus.seenCount)} />
             <Detail label="Forwarded to app" value={String(listenerStatus.forwardedCount)} />
+            <Detail label="Handled in background" value={String(listenerStatus.headlessCount)} />
             <Detail label="Last app seen" value={listenerStatus.lastSeenPackage || "(none)"} />
           </Card>
         ) : null}

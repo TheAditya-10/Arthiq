@@ -3,7 +3,7 @@ import type { RawNotification } from "../../src/notifications/types.js";
 
 type AccessStatus = "granted" | "denied" | "unknown";
 
-interface NativeNotificationEvent {
+export interface NativeNotificationEvent {
   packageName: string;
   title: string;
   text: string;
@@ -21,6 +21,9 @@ declare class NativeNotificationListenerModule extends NativeModule<Notification
   getAccessStatus(): AccessStatus;
   getStatus(): ListenerStatus;
   openSettings(): void;
+  drainPending(): NativeNotificationEvent[];
+  isIgnoringBatteryOptimizations(): boolean;
+  openAppSettings(): void;
 }
 
 export interface ListenerStatus {
@@ -29,8 +32,13 @@ export interface ListenerStatus {
   allowedPackages: string;
   seenCount: number;
   forwardedCount: number;
+  /** How many were handed to the headless task because no UI was listening. */
+  headlessCount: number;
   lastSeenPackage: string;
 }
+
+/** Name the native ArthiqNotificationTaskService starts — registered in apps/mobile/index.js. */
+export const HEADLESS_TASK_NAME = "ArthiqNotificationTask";
 
 // Android-only native module. On any other platform (including the Metro
 // bundler's Jest/Vitest environment) requiring it throws, so callers must go
@@ -70,16 +78,40 @@ export function openSettings(): void {
   nativeModule.openSettings();
 }
 
+/**
+ * Notifications the native side buffered because neither the UI nor a
+ * headless task could take them (Android refused the background start).
+ * Returned once, then cleared — feed them through the pipeline.
+ */
+export function drainPending(): RawNotification[] {
+  return nativeModule.drainPending().map(toRawNotification);
+}
+
+/** Whether Android's battery optimisation is off for this app (needed for reliable background capture on many phones). */
+export function isIgnoringBatteryOptimizations(): boolean {
+  return nativeModule.isIgnoringBatteryOptimizations();
+}
+
+/** Opens this app's App info screen (Battery > Unrestricted, OEM auto-start toggles). */
+export function openAppSettings(): void {
+  nativeModule.openAppSettings();
+}
+
+/** Converts the headless task's / native event's payload into a RawNotification. */
+export function toRawNotification(event: NativeNotificationEvent): RawNotification {
+  return {
+    packageName: event.packageName,
+    title: event.title,
+    text: event.text,
+    postTime: event.postTime,
+  };
+}
+
 /** Subscribes to allow-listed notifications as they're posted. Raw text never touches disk here — see docs/MOBILE_ARCHITECTURE.md. */
 export function addNotificationListener(
   listener: (notification: RawNotification) => void,
 ): EventSubscription {
   return nativeModule.addListener("onNotificationPosted", (event) => {
-    listener({
-      packageName: event.packageName,
-      title: event.title,
-      text: event.text,
-      postTime: event.postTime,
-    });
+    listener(toRawNotification(event));
   });
 }

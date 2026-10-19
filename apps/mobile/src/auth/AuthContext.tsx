@@ -1,18 +1,7 @@
-import * as SecureStore from "expo-secure-store";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { type ApiClient, type CurrentUser, createApiClient } from "../api/client.js";
-import { createTokenStore } from "./secureTokenStore.js";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:4000";
-
-// expo-secure-store's namespace export already structurally matches the
-// SecureStorageAdapter interface (getItemAsync/setItemAsync/deleteItemAsync)
-// — no wrapper needed. This is the one place in the app that actually
-// imports it; everything else depends on the interface (see
-// secureTokenStore.ts's doc comment).
-const tokenStore = createTokenStore(SecureStore);
-const apiClient = createApiClient({ baseUrl: API_URL, tokenStore });
+import type { ApiClient, CurrentUser } from "../api/client.js";
+import { apiClient, tokenStore } from "./session.js";
 
 interface AuthContextValue {
   user: CurrentUser | null;

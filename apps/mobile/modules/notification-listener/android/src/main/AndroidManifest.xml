@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   package="dev.arthiq.notificationlistener">
 
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+
   <application>
     <service
       android:name=".ArthiqNotificationListenerService"
@@ -11,6 +13,12 @@
         <action android:name="android.service.notification.NotificationListenerService" />
       </intent-filter>
     </service>
+
+    <!-- Runs the JS pipeline headlessly when the app UI isn't open. Not exported:
+         only the listener service above starts it. -->
+    <service
+      android:name=".ArthiqNotificationTaskService"
+      android:exported="false" />
   </application>
 
 </manifest>
