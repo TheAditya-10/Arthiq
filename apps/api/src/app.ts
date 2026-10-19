@@ -37,6 +37,12 @@ export interface BuildAppOptions {
  */
 export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
+    // Behind Vercel's (or any reverse) proxy the socket address is the proxy,
+    // not the client — without this every user shares one rate-limit bucket
+    // (so 10 logins/min would lock out everyone at once). Opt-in elsewhere
+    // via TRUST_PROXY=true so a directly exposed server can't be spoofed
+    // through X-Forwarded-For.
+    trustProxy: Boolean(process.env.VERCEL) || process.env.TRUST_PROXY === "true",
     logger:
       opts.logger === false
         ? false
@@ -69,6 +75,22 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(cors, {
     origin: allowedOrigins,
     credentials: true,
+  });
+
+  // Baseline hardening headers on every response. The API serves JSON only,
+  // so it can safely forbid framing, sniffing and referrer leakage, and tell
+  // caches never to store user data.
+  app.addHook("onSend", async (request, reply) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Referrer-Policy", "no-referrer");
+    reply.header("Cross-Origin-Resource-Policy", "same-site");
+    if (process.env.NODE_ENV === "production") {
+      reply.header("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
+    }
+    if (!request.url.startsWith("/api/docs") && !reply.getHeader("Cache-Control")) {
+      reply.header("Cache-Control", "no-store");
+    }
   });
 
   await app.register(cookie);
