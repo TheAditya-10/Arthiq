@@ -119,6 +119,46 @@ describe("NotificationPipeline.handle", () => {
     expect(sendCount).toBe(1);
   });
 
+  it("sends once when two notifications for the same payment arrive at the same moment", async () => {
+    let sendCount = 0;
+    const pipeline = new NotificationPipeline({
+      storage: createInMemoryStorage(),
+      sendRich: async () => {
+        sendCount += 1;
+        return { ok: true };
+      },
+      resolveAccountId: () => "11111111-1111-1111-1111-111111111111",
+      subscribe: () => ({ remove: () => {} }),
+    });
+
+    const results = await Promise.all([pipeline.handle(GPAY_DEBIT), pipeline.handle(GPAY_DEBIT)]);
+    expect(results.filter((r) => r === null)).toHaveLength(1);
+    expect(sendCount).toBe(1);
+  });
+
+  it("sends once when the UPI app and the bank SMS both report the same payment", async () => {
+    let sendCount = 0;
+    const pipeline = new NotificationPipeline({
+      storage: createInMemoryStorage(),
+      sendRich: async () => {
+        sendCount += 1;
+        return { ok: true };
+      },
+      resolveAccountId: () => "11111111-1111-1111-1111-111111111111",
+      subscribe: () => ({ remove: () => {} }),
+    });
+
+    await pipeline.handle(GPAY_DEBIT);
+    const sms = await pipeline.handle({
+      packageName: "com.google.android.apps.messaging",
+      title: "AX-HDFCBK",
+      text: "Rs 480.00 debited from A/c XX1234 on 20-08-26 to VPA zomato@okicici. UPI Ref 612345678901",
+      postTime: GPAY_DEBIT.postTime + 45_000,
+    });
+    expect(sms).toBeNull();
+    expect(sendCount).toBe(1);
+  });
+
   it("never checks account mapping or sends for a duplicate — the dedup check runs before account resolution", async () => {
     let resolveCalls = 0;
     const pipeline = new NotificationPipeline({

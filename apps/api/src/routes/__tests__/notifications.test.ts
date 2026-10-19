@@ -171,6 +171,33 @@ describe("POST /notifications/ingest", () => {
     expect(res.statusCode).toBe(404);
   });
 
+  it("reports DUPLICATE when a second notification for the same payment names the merchant differently", async () => {
+    const { accessToken, accountId } = await setup(app);
+
+    const first = await app.inject({
+      method: "POST",
+      url: "/notifications/ingest",
+      headers: authHeader(accessToken),
+      payload: ingestPayload(accountId, { occurredAt: "2026-08-10T12:29:30Z" }),
+    });
+    // The bank SMS for the same payment: VPA instead of a merchant name, a
+    // minute later and across a 5-minute hash bucket boundary.
+    const second = await app.inject({
+      method: "POST",
+      url: "/notifications/ingest",
+      headers: authHeader(accessToken),
+      payload: ingestPayload(accountId, {
+        merchantRaw: "zomato@okicici",
+        occurredAt: "2026-08-10T12:30:30Z",
+        provider: "GENERIC_UPI",
+        sourcePackage: "com.google.android.apps.messaging",
+        rawTextHash: "sms-hash",
+      }),
+    });
+    expect(first.json().dedupOutcome).toBe("NEW");
+    expect(second.json().dedupOutcome).toBe("DUPLICATE");
+  });
+
   it("does not false-positive dedup two genuinely different transactions with the same amount", async () => {
     const { accessToken, accountId } = await setup(app);
 

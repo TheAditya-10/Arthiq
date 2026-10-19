@@ -3,7 +3,7 @@ import type {
   ParsedTransaction as WireParsedTransaction,
 } from "@arthiq/types";
 import { recordDiagnostic } from "./diagnostics.js";
-import { computeLocalDedupHash, DedupCache, type KeyValueStorage } from "./dedupCache.js";
+import { computeDedupFingerprint, DedupCache, type KeyValueStorage } from "./dedupCache.js";
 import type { IngestSendResult } from "./ingestClient.js";
 import { resolveNotificationProvider } from "./providers/index.js";
 import { isSensitiveNotification } from "./sensitive.js";
@@ -55,6 +55,20 @@ export interface NotificationPipelineOptions {
 }
 
 /**
+ * Module-level, so every pipeline instance in this JS runtime — the UI's and
+ * the headless task's — processes one notification at a time. Without it,
+ * two notifications for the same payment arriving together both pass the
+ * dedup check before either is recorded, and both get sent.
+ */
+let processingChain: Promise<unknown> = Promise.resolve();
+
+function serialized<T>(work: () => Promise<T>): Promise<T> {
+  const next = processingChain.then(work, work);
+  processingChain = next.catch(() => undefined);
+  return next;
+}
+
+/**
  * Wires together every piece built in Phases 10-12: the native listener
  * (Phase 11) posts a raw notification, a provider parser (Phase 10) turns it
  * into a `ParsedTransaction`, the local dedup cache (Phase 10) drops re-posts
@@ -99,7 +113,13 @@ export class NotificationPipeline {
    * just via `start`'s event subscription) so it's unit-testable without a
    * native listener.
    */
-  async handle(notification: RawNotification): Promise<{ sent: number; remaining: number } | null> {
+  handle(notification: RawNotification): Promise<{ sent: number; remaining: number } | null> {
+    return serialized(() => this.process(notification));
+  }
+
+  private async process(
+    notification: RawNotification,
+  ): Promise<{ sent: number; remaining: number } | null> {
     const provider = resolveNotificationProvider(notification.packageName, {
       genericUpiEnabled: this.options.genericUpiEnabled ?? true,
     });
@@ -118,8 +138,8 @@ export class NotificationPipeline {
       return null;
     }
 
-    const localHash = computeLocalDedupHash(notification.packageName, parsed);
-    if (await this.dedupCache.has(localHash)) {
+    const fingerprint = computeDedupFingerprint(notification, parsed);
+    if (await this.dedupCache.has(fingerprint)) {
       recordDiagnostic(notification, "duplicate");
       return null;
     }
@@ -133,7 +153,7 @@ export class NotificationPipeline {
       return null;
     }
 
-    await this.dedupCache.add(localHash);
+    await this.dedupCache.add(fingerprint);
 
     const payload = toWirePayload(parsed, {
       accountId,
@@ -156,7 +176,7 @@ export class NotificationPipeline {
 
   /** Retries whatever's queued — call on app foreground / connectivity-restored. */
   flush(): Promise<{ sent: number; remaining: number }> {
-    return this.syncQueue.flush();
+    return serialized(() => this.syncQueue.flush());
   }
 
   queueSize(): Promise<number> {

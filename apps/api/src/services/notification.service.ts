@@ -2,7 +2,10 @@ import type { NotificationSource, PrismaClient, Transaction } from "@arthiq/data
 import { fromMinorUnits } from "@arthiq/types";
 import type { IngestNotificationInput } from "@arthiq/validation";
 
-import { findTransactionsByDedupHash } from "../repositories/transaction.repository.js";
+import {
+  findNearbyNotificationTransactions,
+  findTransactionsByDedupHash,
+} from "../repositories/transaction.repository.js";
 import {
   createNotificationSource,
   listNotificationSources as listNotificationSourcesRepo,
@@ -10,6 +13,14 @@ import {
 import { computeDedupHash, normalizeMerchant } from "../lib/dedup.js";
 import { requireAccount } from "./account.service.js";
 import { addTransaction } from "./transaction.service.js";
+
+/**
+ * Two notifications for the same amount on the same account this close
+ * together are one payment reported twice (UPI app + bank SMS, or an app
+ * posting twice). Mirrors the device's SAME_PAYMENT_WINDOW_MS, as a backstop
+ * for older app versions and for anything the device-local cache missed.
+ */
+const SAME_PAYMENT_WINDOW_MS = 3 * 60 * 1000;
 
 export interface IngestResult {
   dedupOutcome: "NEW" | "DUPLICATE";
@@ -52,7 +63,16 @@ export async function ingestNotification(
   });
 
   const existing = await findTransactionsByDedupHash(prisma, userId, dedupHash);
-  if (existing.length > 0) {
+  const nearby =
+    existing.length > 0
+      ? []
+      : await findNearbyNotificationTransactions(
+          prisma,
+          userId,
+          { accountId: input.accountId, type, amountMinor, occurredAt },
+          SAME_PAYMENT_WINDOW_MS,
+        );
+  if (existing.length > 0 || nearby.length > 0) {
     const notificationSource = await createNotificationSource(prisma, userId, {
       sourcePackage: input.sourcePackage,
       provider: input.provider,

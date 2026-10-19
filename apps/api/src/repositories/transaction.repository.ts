@@ -123,6 +123,39 @@ export function findTransactionsByDedupHash(
   return prisma.transaction.findMany({ where: { userId, dedupHash, status: { not: "VOIDED" } } });
 }
 
+/**
+ * Notification-sourced transactions on the same account, same type and
+ * amount, within `windowMs` of `occurredAt` — the "one payment, several
+ * notifications" duplicate whose merchant text differs between sources, so
+ * the composite dedupHash can't catch it.
+ */
+export function findNearbyNotificationTransactions(
+  prisma: PrismaClient,
+  userId: string,
+  match: {
+    accountId: string;
+    type: Prisma.TransactionUncheckedCreateInput["type"];
+    amountMinor: bigint;
+    occurredAt: Date;
+  },
+  windowMs: number,
+): Promise<Transaction[]> {
+  return prisma.transaction.findMany({
+    where: {
+      userId,
+      accountId: match.accountId,
+      type: match.type,
+      amountMinor: match.amountMinor,
+      source: "ANDROID_NOTIFICATION",
+      status: { not: "VOIDED" },
+      occurredAt: {
+        gte: new Date(match.occurredAt.getTime() - windowMs),
+        lte: new Date(match.occurredAt.getTime() + windowMs),
+      },
+    },
+  });
+}
+
 export function createTransaction(
   prisma: Db,
   data: Prisma.TransactionUncheckedCreateInput,
