@@ -45,3 +45,8 @@ apps/web/blob-report/
 # Built Android APKs (large binaries; share via a release/Drive, not git)
 releases/
 *.apk
+
+# Confidential files: personal bank/Paytm statements and reports kept in the repo root
+/Paytm_Statement*.pdf
+/Account Statement*.pdf
+/Hisab_Kitab*.xlsx
