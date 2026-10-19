@@ -6,6 +6,7 @@ import { recordDiagnostic } from "./diagnostics.js";
 import { computeLocalDedupHash, DedupCache, type KeyValueStorage } from "./dedupCache.js";
 import type { IngestSendResult } from "./ingestClient.js";
 import { resolveNotificationProvider } from "./providers/index.js";
+import { isSensitiveNotification } from "./sensitive.js";
 import { SyncQueue } from "./syncQueue.js";
 import type { RawNotification } from "./types.js";
 import { toWirePayload } from "./wireFormat.js";
@@ -103,6 +104,13 @@ export class NotificationPipeline {
       genericUpiEnabled: this.options.genericUpiEnabled ?? true,
     });
     if (!provider) return null;
+
+    // First thing after the allow-list: never let an OTP / verification code
+    // reach the parser, the diagnostics list, storage or the network.
+    if (isSensitiveNotification(notification)) {
+      recordDiagnostic(notification, "dropped-sensitive");
+      return null;
+    }
 
     const parsed = provider.parse(notification);
     if (!parsed) {

@@ -159,3 +159,46 @@ describe("NotificationPipeline.handle", () => {
     expect(fake.removed).toBe(true);
   });
 });
+
+describe("NotificationPipeline sensitive-content handling", () => {
+  it("drops OTP messages before parsing, sending or keeping their text", async () => {
+    const { getDiagnostics } = await import("../diagnostics.js");
+    const sent: unknown[] = [];
+    const pipeline = new NotificationPipeline({
+      storage: createInMemoryStorage(),
+      sendRich: async (payload) => {
+        sent.push(payload);
+        return { ok: true };
+      },
+      resolveAccountId: () => "11111111-1111-1111-1111-111111111111",
+      subscribe: () => ({ remove: () => {} }),
+    });
+
+    await pipeline.handle(
+      raw("com.google.android.apps.messaging", "JM-HDFCBK", "482913 is your OTP for Rs.500 txn"),
+    );
+
+    expect(sent).toHaveLength(0);
+    const latest = getDiagnostics()[0];
+    expect(latest?.outcome).toBe("dropped-sensitive");
+    expect(latest?.text).toBe("");
+    expect(JSON.stringify(getDiagnostics())).not.toContain("482913");
+  });
+
+  it("keeps no content for notifications that are not payments", async () => {
+    const { getDiagnostics } = await import("../diagnostics.js");
+    const pipeline = new NotificationPipeline({
+      storage: createInMemoryStorage(),
+      sendRich: async () => ({ ok: true }),
+      resolveAccountId: () => "11111111-1111-1111-1111-111111111111",
+      subscribe: () => ({ remove: () => {} }),
+    });
+    await pipeline.handle(
+      raw("com.google.android.apps.messaging", "Friend", "see you at 5, bring the keys"),
+    );
+    const latest = getDiagnostics()[0];
+    expect(latest?.outcome).toBe("no-parser-match");
+    expect(latest?.text).toBe("");
+    expect(latest?.title).toBe("");
+  });
+});
