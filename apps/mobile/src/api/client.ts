@@ -127,6 +127,12 @@ export interface ApiClient {
     logout(): Promise<void>;
     me(): Promise<CurrentUser>;
   };
+  users: {
+    /** Complete copy of the signed-in user's data (right of access). */
+    exportMe(): Promise<Record<string, unknown>>;
+    /** Irreversible; the server requires the password again. */
+    deleteMe(password: string): Promise<void>;
+  };
   accounts: {
     list(): Promise<Account[]>;
   };
@@ -287,6 +293,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         await tokenStore.setRefreshToken(null);
       },
       me: () => request<CurrentUser>("/auth/me"),
+    },
+    users: {
+      exportMe: () => request<Record<string, unknown>>("/users/me/export"),
+      deleteMe: (password) =>
+        request<void>("/users/me", { method: "DELETE", body: { password }, skipRefresh: false }),
     },
     accounts: {
       list: () => request<Account[]>("/accounts"),

@@ -250,7 +250,11 @@ export const api = {
   users: {
     updateMe: (input: Partial<{ displayName: string; timezone: string }>) =>
       request<CurrentUser>("/users/me", { method: "PATCH", body: input }),
-    deleteMe: () => request<void>("/users/me", { method: "DELETE" }),
+    /** Irreversible; the server requires the password again (see API users route). */
+    deleteMe: (password: string) =>
+      request<void>("/users/me", { method: "DELETE", body: { password } }),
+    /** Complete copy of the user's data (right of access / portability). */
+    exportMe: () => request<Record<string, unknown>>("/users/me/export"),
   },
   accounts: {
     list: (includeArchived = false) =>

@@ -2,6 +2,7 @@
 
 import { Alert } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/ui/page-header";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,9 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
 
   const [confirmText, setConfirmText] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -35,11 +39,30 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleExport() {
+    setExportError(null);
+    setExporting(true);
+    try {
+      const data = await api.users.exportMe();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `arthiq-export-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Could not export your data");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function handleDeleteAccount() {
     setDeleteError(null);
     setDeleting(true);
     try {
-      await api.users.deleteMe();
+      await api.users.deleteMe(deletePassword);
       await logout();
       router.push("/login");
     } catch (err) {
@@ -77,6 +100,34 @@ export default function SettingsPage() {
         </CardBody>
       </Card>
 
+      <Card>
+        <CardHeader className="text-sm font-bold text-slate-900">Your data</CardHeader>
+        <CardBody>
+          <p className="mb-3 text-sm text-slate-600">
+            Download a complete copy of everything we hold about you as a JSON file: accounts,
+            transactions, people, categories and more. Your password and sessions are never
+            included. You can do this a few times per hour.
+          </p>
+          {exportError && <Alert className="mb-3">{exportError}</Alert>}
+          <Button variant="secondary" disabled={exporting} onClick={handleExport}>
+            {exporting ? "Preparing..." : "Download my data"}
+          </Button>
+          <p className="mt-4 text-xs text-slate-500">
+            <Link href="/privacy" className="underline">
+              Privacy Policy
+            </Link>{" "}
+            ·{" "}
+            <Link href="/terms" className="underline">
+              Terms
+            </Link>{" "}
+            ·{" "}
+            <Link href="/trust" className="underline">
+              How we protect your data
+            </Link>
+          </p>
+        </CardBody>
+      </Card>
+
       <Card className="border-red-100">
         <CardHeader className="text-sm font-bold text-red-600">Delete account</CardHeader>
         <CardBody>
@@ -84,6 +135,15 @@ export default function SettingsPage() {
             Permanently deletes your account and everything in it — accounts, transactions, people,
             ledger entries, categories, and history. This cannot be undone.
           </p>
+          <Label htmlFor="deletePassword">Your password</Label>
+          <Input
+            id="deletePassword"
+            type="password"
+            autoComplete="current-password"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            className="mb-3"
+          />
           <Label htmlFor="confirmDelete">Type DELETE to confirm</Label>
           <Input
             id="confirmDelete"
@@ -94,7 +154,7 @@ export default function SettingsPage() {
           {deleteError && <Alert className="mb-3">{deleteError}</Alert>}
           <Button
             variant="danger"
-            disabled={confirmText !== "DELETE" || deleting}
+            disabled={confirmText !== "DELETE" || !deletePassword || deleting}
             onClick={handleDeleteAccount}
           >
             {deleting ? "Deleting..." : "Delete my account"}

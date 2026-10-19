@@ -21,6 +21,8 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Permanently deletes the account and all its data, then signs out locally. */
+  deleteAccount: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -61,9 +63,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const deleteAccount = useCallback(async (password: string) => {
+    await apiClient.users.deleteMe(password);
+    // The server session is already gone; this just clears the local tokens.
+    await apiClient.auth.logout();
+    setUser(null);
+  }, []);
+
   const value = useMemo(
-    () => ({ user, loading, apiClient, login, register, logout }),
-    [user, loading, login, register, logout],
+    () => ({ user, loading, apiClient, login, register, logout, deleteAccount }),
+    [user, loading, login, register, logout, deleteAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

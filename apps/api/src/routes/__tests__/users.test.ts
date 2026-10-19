@@ -58,6 +58,7 @@ describe("user routes", () => {
       method: "DELETE",
       url: "/users/me",
       headers: authHeader(accessToken),
+      payload: { password: "correct horse battery" },
     });
     expect(del.statusCode).toBe(204);
 
@@ -69,6 +70,73 @@ describe("user routes", () => {
       headers: authHeader(accessToken),
     });
     expect(me.statusCode).toBe(404);
+  });
+
+  it("DELETE /users/me refuses without the correct password and deletes nothing", async () => {
+    const { accessToken } = await registerTestUser(app);
+
+    const missing = await app.inject({
+      method: "DELETE",
+      url: "/users/me",
+      headers: authHeader(accessToken),
+    });
+    expect(missing.statusCode).toBe(400);
+
+    const wrong = await app.inject({
+      method: "DELETE",
+      url: "/users/me",
+      headers: authHeader(accessToken),
+      payload: { password: "not the password" },
+    });
+    expect(wrong.statusCode).toBe(403);
+    expect(wrong.json().error.code).toBe("INVALID_PASSWORD");
+
+    const me = await app.inject({
+      method: "GET",
+      url: "/auth/me",
+      headers: authHeader(accessToken),
+    });
+    expect(me.statusCode).toBe(200);
+  });
+
+  it("GET /users/me/export returns the user's data only, without secrets", async () => {
+    const alice = await registerTestUser(app, { displayName: "Alice" });
+    const bob = await registerTestUser(app, { displayName: "Bob" });
+    for (const [who, name] of [
+      [alice, "Alice Bank"],
+      [bob, "Bob Bank"],
+    ] as const) {
+      await app.inject({
+        method: "POST",
+        url: "/accounts",
+        headers: authHeader(who.accessToken),
+        payload: { name, type: "BANK", openingBalance: 0, openingBalanceDate: "2026-01-01" },
+      });
+    }
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/users/me/export",
+      headers: authHeader(alice.accessToken),
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-disposition"]).toContain("arthiq-export.json");
+    const body = res.json();
+    expect(body.format).toBe("arthiq-export-v1");
+    expect(body.user.email).toBe(alice.email);
+    expect(body.accounts.map((a: { name: string }) => a.name)).toEqual(["Alice Bank"]);
+
+    const raw = res.body;
+    expect(raw).not.toContain("passwordHash");
+    expect(raw).not.toContain("passwordSalt");
+    expect(raw).not.toContain("Bob Bank");
+  });
+
+  it("sends security headers", async () => {
+    const res = await app.inject({ method: "GET", url: "/health" });
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    expect(res.headers["x-frame-options"]).toBe("DENY");
+    expect(res.headers["cache-control"]).toBe("no-store");
   });
 
   it("requires authentication", async () => {

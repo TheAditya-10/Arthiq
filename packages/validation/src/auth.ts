@@ -25,3 +25,9 @@ export const updateProfileSchema = z.object({
   timezone: z.string().trim().min(1).max(64).optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+/** Account deletion is irreversible, so the caller must re-prove they know the password (a stolen access token alone isn't enough). */
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1).max(128),
+});
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
